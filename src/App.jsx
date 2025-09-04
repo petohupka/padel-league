@@ -303,22 +303,22 @@ const PadelCompetitionApp = () => {
 
   const PadelCourtBackground = () => (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Simple blue to black gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-800 to-black" />
+      {/* Light white to royal blue gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-blue-100 to-blue-600" />
       
       {/* Random padel balls scattered around */}
-      <div className="absolute top-10 left-20 w-8 h-8 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-30 animate-pulse" />
-      <div className="absolute top-32 right-32 w-6 h-6 bg-gradient-to-br from-yellow-300 to-green-500 rounded-full opacity-40" />
-      <div className="absolute bottom-20 left-40 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-25" />
-      <div className="absolute top-1/2 left-10 w-5 h-5 bg-gradient-to-br from-yellow-500 to-green-300 rounded-full opacity-35" />
-      <div className="absolute bottom-40 right-20 w-8 h-8 bg-gradient-to-br from-yellow-300 to-green-400 rounded-full opacity-30 animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-20 right-1/4 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-25" />
-      <div className="absolute bottom-1/3 left-1/3 w-7 h-7 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-40" />
-      <div className="absolute top-3/4 right-40 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-35 animate-pulse" style={{ animationDelay: '2s' }} />
-      <div className="absolute top-40 left-1/2 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-30" />
-      <div className="absolute bottom-16 right-1/3 w-8 h-8 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-25" />
-      <div className="absolute top-1/4 right-16 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-40" />
-      <div className="absolute bottom-60 left-16 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-30 animate-pulse" style={{ animationDelay: '1.5s' }} />
+      <div className="absolute top-10 left-20 w-8 h-8 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-20 animate-pulse" />
+      <div className="absolute top-32 right-32 w-6 h-6 bg-gradient-to-br from-yellow-300 to-green-500 rounded-full opacity-25" />
+      <div className="absolute bottom-20 left-40 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-15" />
+      <div className="absolute top-1/2 left-10 w-5 h-5 bg-gradient-to-br from-yellow-500 to-green-300 rounded-full opacity-20" />
+      <div className="absolute bottom-40 right-20 w-8 h-8 bg-gradient-to-br from-yellow-300 to-green-400 rounded-full opacity-18 animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-20 right-1/4 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-15" />
+      <div className="absolute bottom-1/3 left-1/3 w-7 h-7 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-22" />
+      <div className="absolute top-3/4 right-40 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-20 animate-pulse" style={{ animationDelay: '2s' }} />
+      <div className="absolute top-40 left-1/2 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-18" />
+      <div className="absolute bottom-16 right-1/3 w-8 h-8 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-16" />
+      <div className="absolute top-1/4 right-16 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-25" />
+      <div className="absolute bottom-60 left-16 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-19 animate-pulse" style={{ animationDelay: '1.5s' }} />
     </div>
   );
 
