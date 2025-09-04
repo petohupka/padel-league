@@ -303,59 +303,22 @@ const PadelCompetitionApp = () => {
 
   const PadelCourtBackground = () => (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      <div className="absolute inset-0 bg-gradient-to-br from-sky-400/20 via-blue-500/15 to-cyan-600/25" />
+      {/* Simple blue to black gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-800 to-black" />
       
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative">
-          <div 
-            className="w-[90vw] max-w-[1000px] h-[45vw] max-h-[500px] relative"
-            style={{ 
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.35) 50%, rgba(29, 78, 216, 0.20) 100%)',
-              border: '4px solid rgba(255, 255, 255, 0.4)',
-              borderRadius: '8px',
-              backdropFilter: 'blur(1px)'
-            }}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1000 500">
-              <rect x="50" y="50" width="900" height="400" fill="none" stroke="rgba(255, 255, 255, 0.8)" strokeWidth="6" rx="6" />
-              <line x1="500" y1="50" x2="500" y2="450" stroke="rgba(255, 255, 255, 0.9)" strokeWidth="8" />
-              <line x1="50" y1="175" x2="500" y2="175" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
-              <line x1="50" y1="325" x2="500" y2="325" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
-              <line x1="500" y1="175" x2="950" y2="175" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
-              <line x1="500" y1="325" x2="950" y2="325" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
-              <line x1="200" y1="50" x2="200" y2="450" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
-              <line x1="800" y1="50" x2="800" y2="450" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
-              <rect x="495" y="50" width="10" height="400" fill="rgba(0, 0, 0, 0.6)" />
-              {Array.from({ length: 20 }, (_, i) => (
-                <line key={i} x1="495" y1={50 + (i * 20)} x2="505" y2={50 + (i * 20)} 
-                  stroke="rgba(255, 255, 255, 0.3)" strokeWidth="1" />
-              ))}
-            </svg>
-            
-            <div className="absolute -left-12 top-0 w-10 h-full bg-gradient-to-r from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-l-2 border-slate-300/40" />
-            <div className="absolute -right-12 top-0 w-10 h-full bg-gradient-to-l from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-r-2 border-slate-300/40" />
-            <div className="absolute -top-8 left-0 w-full h-6 bg-gradient-to-b from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-t-2 border-slate-300/40" />
-            <div className="absolute -bottom-8 left-0 w-full h-6 bg-gradient-to-t from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-b-2 border-slate-300/40" />
-            
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/5" />
-          </div>
-        </div>
-      </div>
-      
-      <div className="absolute top-8 left-8 opacity-15 rotate-12 scale-50">
-        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
-      </div>
-      <div className="absolute top-8 right-8 opacity-15 -rotate-6 scale-50">
-        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
-      </div>
-      <div className="absolute bottom-8 left-8 opacity-15 rotate-6 scale-50">
-        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
-      </div>
-      <div className="absolute bottom-8 right-8 opacity-15 -rotate-12 scale-50">
-        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
-      </div>
-      
-      <div className="absolute inset-0 bg-gradient-radial from-transparent via-blue-500/5 to-transparent" />
+      {/* Random padel balls scattered around */}
+      <div className="absolute top-10 left-20 w-8 h-8 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-30 animate-pulse" />
+      <div className="absolute top-32 right-32 w-6 h-6 bg-gradient-to-br from-yellow-300 to-green-500 rounded-full opacity-40" />
+      <div className="absolute bottom-20 left-40 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-25" />
+      <div className="absolute top-1/2 left-10 w-5 h-5 bg-gradient-to-br from-yellow-500 to-green-300 rounded-full opacity-35" />
+      <div className="absolute bottom-40 right-20 w-8 h-8 bg-gradient-to-br from-yellow-300 to-green-400 rounded-full opacity-30 animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-20 right-1/4 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-25" />
+      <div className="absolute bottom-1/3 left-1/3 w-7 h-7 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-40" />
+      <div className="absolute top-3/4 right-40 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-35 animate-pulse" style={{ animationDelay: '2s' }} />
+      <div className="absolute top-40 left-1/2 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-30" />
+      <div className="absolute bottom-16 right-1/3 w-8 h-8 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-25" />
+      <div className="absolute top-1/4 right-16 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-40" />
+      <div className="absolute bottom-60 left-16 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-30 animate-pulse" style={{ animationDelay: '1.5s' }} />
     </div>
   );
 
@@ -382,8 +345,8 @@ const PadelCompetitionApp = () => {
             <div className="bg-gradient-to-r from-blue-600 to-emerald-600 p-4 rounded-2xl shadow-lg">
               <Trophy className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-emerald-700 bg-clip-text text-transparent">
-              Padel League
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-emerald-700 bg-clip-text text-transparent" style={{ fontFamily: 'Bebas Neue, cursive' }}>
+              MITON PADEL LEAGUE
             </h1>
           </div>
           <p className="text-slate-600 text-lg">Elite player rankings & match tracking</p>
