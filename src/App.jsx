@@ -239,28 +239,28 @@ const PadelCompetitionApp = () => {
   // Padel Court Background Component
 const PadelCourtBG = () => (
   <div 
-    className="fixed inset-0 -z-10"
+    className="fixed inset-0"
     style={{
+      zIndex: -1,
+      backgroundColor: 'rgba(59, 130, 246, 0.05)',
       backgroundImage: `
-        linear-gradient(90deg, rgba(100,100,100,0.1) 1px, transparent 1px),
-        linear-gradient(rgba(100,100,100,0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(100,100,100,0.2) 1px, transparent 1px),
-        linear-gradient(rgba(100,100,100,0.2) 1px, transparent 1px)
-      `,
-      backgroundSize: '100px 100px, 100px 100px, 20px 20px, 20px 20px',
-      backgroundPosition: '-1px -1px, -1px -1px, -1px -1px, -1px -1px'
+        repeating-linear-gradient(
+          45deg,
+          rgba(100,100,100,0.3) 0px,
+          rgba(100,100,100,0.3) 2px,
+          transparent 2px,
+          transparent 50px
+        ),
+        repeating-linear-gradient(
+          -45deg,
+          rgba(16, 185, 129, 0.2) 0px,
+          rgba(16, 185, 129, 0.2) 2px,
+          transparent 2px,
+          transparent 50px
+        )
+      `
     }}
-  >
-    <div 
-      className="absolute inset-0 opacity-20"
-      style={{
-        background: `
-          radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
-          radial-gradient(circle at 70% 70%, rgba(16, 185, 129, 0.3) 0%, transparent 50%)
-        `
-      }}
-    />
-  </div>
+  />
 );
 
   return (
