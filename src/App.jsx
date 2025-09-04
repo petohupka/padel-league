@@ -331,42 +331,27 @@ const PadelCompetitionApp = () => {
     return <Star className="w-5 h-5 text-blue-500" />;
   };
 
-  const ranking = getRanking();
+const ranking = getRanking();
 
-)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
-          <rect x="900" y="100" width="50" height="300" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
-          
-          {/* Side walls */}
-          <rect x="100" y="50" width="800" height="50" fill="rgba(59, 130, 246, 0.1)" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" />
-          <rect x="100" y="400" width="800" height="50" fill="rgba(59, 130, 246, 0.1)" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" />
-          
-          {/* Net with more detail */}
-          <rect x="495" y="100" width="10" height="300" fill="rgba(34, 197, 94, 0.4)" />
-          <line x1="495" y1="120" x2="505" y2="120" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
-          <line x1="495" y1="150" x2="505" y2="150" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
-          <line x1="495" y1="180" x2="505" y2="180" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
-          
-          {/* Center circle */}
-          <circle cx="500" cy="250" r="5" fill="rgba(34, 197, 94, 0.8)" />
-        </svg>
-      </div>
-      
-      {/* Corner decorative courts */}
-      <div className="absolute top-10 left-10 w-32 h-16 opacity-10 rotate-12">
-        <svg width="100%" height="100%" viewBox="0 0 200 100">
-          <rect x="10" y="10" width="180" height="80" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="3" />
-          <line x1="100" y1="10" x2="100" y2="90" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="2" />
-        </svg>
-      </div>
-      
-      <div className="absolute bottom-10 right-10 w-32 h-16 opacity-10 -rotate-12">
-        <svg width="100%" height="100%" viewBox="0 0 200 100">
-          <rect x="10" y="10" width="180" height="80" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="3" />
-          <line x1="100" y1="10" x2="100" y2="90" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="2" />
-        </svg>
-      </div>
+// Simple Padel Court Background
+const PadelCourtBackground = () => (
+  <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 opacity-20">
+    <div className="absolute inset-0 flex items-center justify-center">
+      <svg width="800" height="400" viewBox="0 0 800 400" className="max-w-full max-h-full">
+        <rect x="100" y="100" width="600" height="200" fill="rgba(34, 197, 94, 0.1)" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="3" rx="4" />
+        <line x1="400" y1="100" x2="400" y2="300" stroke="rgba(34, 197, 94, 0.9)" strokeWidth="4" />
+        <line x1="100" y1="150" x2="400" y2="150" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+        <line x1="100" y1="250" x2="400" y2="250" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+        <line x1="400" y1="150" x2="700" y2="150" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+        <line x1="400" y1="250" x2="700" y2="250" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+        <line x1="250" y1="100" x2="250" y2="300" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+        <line x1="550" y1="100" x2="550" y2="300" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+        <rect x="50" y="100" width="50" height="200" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.5)" strokeWidth="2" />
+        <rect x="700" y="100" width="50" height="200" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.5)" strokeWidth="2" />
+      </svg>
     </div>
-  );
+  </div>
+);
 
   if (loading) {
     return (
