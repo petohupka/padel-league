@@ -241,7 +241,7 @@ const PadelCourtBG = () => (
   <div className="fixed inset-0 -z-10 overflow-hidden">
     {/* Main court SVG */}
     <svg 
-      className="absolute inset-0 w-full h-full text-slate-300" 
+      className="absolute inset-0 w-full h-full text-slate-600" 
       viewBox="0 0 400 200" 
       fill="none"
       style={{ opacity: 0.2 }}
