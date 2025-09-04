@@ -1,24 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, Users, Plus, X, Medal, Star, Calendar, Target } from 'lucide-react';
+import { db } from './firebase';
+import { 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  deleteDoc, 
+  doc, 
+  updateDoc, 
+  query, 
+  orderBy 
+} from 'firebase/firestore';
 
 const PadelCompetitionApp = () => {
-  // Initial sample players
-  const [players, setPlayers] = useState([
-    { id: 1, name: 'Alex', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 2, name: 'Maria', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 3, name: 'Carlos', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 4, name: 'Sofia', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 5, name: 'Diego', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 6, name: 'Ana', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 7, name: 'Luis', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 8, name: 'Carmen', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 9, name: 'Pablo', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 10, name: 'Elena', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 11, name: 'Javier', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 },
-    { id: 12, name: 'Isabel', matches: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, points: 1000 }
-  ]);
-
+  const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [showAddMatch, setShowAddMatch] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -33,39 +30,76 @@ const PadelCompetitionApp = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
+  // Load data from Firebase
+  useEffect(() => {
+    const unsubscribePlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
+      const playersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setPlayers(playersData);
+      setLoading(false);
+    });
+
+    const unsubscribeMatches = onSnapshot(
+      query(collection(db, 'matches'), orderBy('date', 'desc')), 
+      (snapshot) => {
+        const matchesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setMatches(matchesData);
+      }
+    );
+
+    return () => {
+      unsubscribePlayers();
+      unsubscribeMatches();
+    };
+  }, []);
+
   // Calculate ELO rating change
   const calculateRatingChange = (winnerRating, loserRating) => {
-    const K = 40; // K-factor for ELO rating
+    const K = 40;
     const expectedWin = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
     return Math.round(K * (1 - expectedWin));
   };
 
-  // Add new player
-  const addPlayer = () => {
+  // Add new player to Firebase
+  const addPlayer = async () => {
     if (newPlayerName.trim()) {
-      const newPlayer = {
-        id: Date.now(),
-        name: newPlayerName.trim(),
-        matches: 0,
-        wins: 0,
-        losses: 0,
-        gamesWon: 0,
-        gamesLost: 0,
-        points: 1000
-      };
-      setPlayers([...players, newPlayer]);
-      setNewPlayerName('');
-      setShowAddPlayer(false);
+      try {
+        await addDoc(collection(db, 'players'), {
+          name: newPlayerName.trim(),
+          matches: 0,
+          wins: 0,
+          losses: 0,
+          gamesWon: 0,
+          gamesLost: 0,
+          points: 1000,
+          createdAt: new Date()
+        });
+        setNewPlayerName('');
+        setShowAddPlayer(false);
+      } catch (error) {
+        console.error("Error adding player:", error);
+        alert("Failed to add player. Please try again.");
+      }
     }
   };
 
-  // Remove player
-  const removePlayer = (playerId) => {
-    setPlayers(players.filter(p => p.id !== playerId));
+  // Remove player from Firebase
+  const removePlayer = async (playerId) => {
+    try {
+      await deleteDoc(doc(db, 'players', playerId));
+    } catch (error) {
+      console.error("Error removing player:", error);
+      alert("Failed to remove player. Please try again.");
+    }
   };
 
-  // Add match
-  const addMatch = () => {
+  // Add match to Firebase
+  const addMatch = async () => {
     const { team1Player1, team1Player2, team2Player1, team2Player2, team1Score, team2Score, date } = matchForm;
     
     // Validation
@@ -96,126 +130,135 @@ const PadelCompetitionApp = () => {
     const team1Won = score1 > score2;
     const scoreDifference = Math.abs(score1 - score2);
 
-    // Create match record
-    const newMatch = {
-      id: Date.now(),
-      team1: [team1Player1, team1Player2],
-      team2: [team2Player1, team2Player2],
-      score: `${score1}-${score2}`,
-      winner: team1Won ? 'team1' : 'team2',
-      date
-    };
+    try {
+      // Create match record in Firebase
+      const matchData = {
+        team1: [team1Player1, team1Player2],
+        team2: [team2Player1, team2Player2],
+        score: `${score1}-${score2}`,
+        winner: team1Won ? 'team1' : 'team2',
+        date,
+        createdAt: new Date()
+      };
 
-    // Update player statistics
-    const updatedPlayers = players.map(player => {
-      const isInTeam1 = [team1Player1, team1Player2].includes(player.name);
-      const isInTeam2 = [team2Player1, team2Player2].includes(player.name);
+      await addDoc(collection(db, 'matches'), matchData);
 
-      if (isInTeam1 || isInTeam2) {
-        const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
-        
-        // Calculate team averages for ELO (using current ratings)
-        const team1Players = players.filter(p => [team1Player1, team1Player2].includes(p.name));
-        const team2Players = players.filter(p => [team2Player1, team2Player2].includes(p.name));
-        const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
-        const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
+      // Update player statistics in Firebase
+      const updatePromises = players.map(async (player) => {
+        const isInTeam1 = [team1Player1, team1Player2].includes(player.name);
+        const isInTeam2 = [team2Player1, team2Player2].includes(player.name);
 
-        // Base ELO change
-        const baseChange = calculateRatingChange(
-          playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
-          playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
-        );
+        if (isInTeam1 || isInTeam2) {
+          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
+          
+          // Calculate team averages for ELO (using current ratings)
+          const team1Players = players.filter(p => [team1Player1, team1Player2].includes(p.name));
+          const team2Players = players.filter(p => [team2Player1, team2Player2].includes(p.name));
+          const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
+          const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
 
-        // Apply score margin bonus/penalty (10% per game difference)
-        const marginMultiplier = 1 + (scoreDifference * 0.10);
-        const finalChange = Math.round(baseChange * marginMultiplier);
+          // Base ELO change
+          const baseChange = calculateRatingChange(
+            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
+            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
+          );
 
-        return {
-          ...player,
-          matches: player.matches + 1,
-          wins: player.wins + (playerWon ? 1 : 0),
-          losses: player.losses + (playerWon ? 0 : 1),
-          gamesWon: player.gamesWon + (isInTeam1 ? score1 : score2),
-          gamesLost: player.gamesLost + (isInTeam1 ? score2 : score1),
-          points: player.points + (playerWon ? finalChange : -finalChange)
-        };
-      }
-      return player;
-    });
+          // Apply score margin bonus/penalty (10% per game difference)
+          const marginMultiplier = 1 + (scoreDifference * 0.10);
+          const finalChange = Math.round(baseChange * marginMultiplier);
 
-    // Update state
-    setPlayers(updatedPlayers);
-    setMatches([newMatch, ...matches]);
-    
-    // Reset form
-    setMatchForm({
-      team1Player1: '',
-      team1Player2: '',
-      team2Player1: '',
-      team2Player2: '',
-      team1Score: '',
-      team2Score: '',
-      date: new Date().toISOString().split('T')[0]
-    });
-    setShowAddMatch(false);
+          const updatedStats = {
+            matches: player.matches + 1,
+            wins: player.wins + (playerWon ? 1 : 0),
+            losses: player.losses + (playerWon ? 0 : 1),
+            gamesWon: player.gamesWon + (isInTeam1 ? score1 : score2),
+            gamesLost: player.gamesLost + (isInTeam1 ? score2 : score1),
+            points: player.points + (playerWon ? finalChange : -finalChange)
+          };
+
+          return updateDoc(doc(db, 'players', player.id), updatedStats);
+        }
+      });
+
+      await Promise.all(updatePromises.filter(Boolean));
+
+      // Reset form
+      setMatchForm({
+        team1Player1: '',
+        team1Player2: '',
+        team2Player1: '',
+        team2Player2: '',
+        team1Score: '',
+        team2Score: '',
+        date: new Date().toISOString().split('T')[0]
+      });
+      setShowAddMatch(false);
+    } catch (error) {
+      console.error("Error adding match:", error);
+      alert("Failed to add match. Please try again.");
+    }
   };
 
-  // Delete match
-  const deleteMatch = (matchId) => {
+  // Delete match from Firebase
+  const deleteMatch = async (matchId) => {
     const matchToDelete = matches.find(m => m.id === matchId);
     if (!matchToDelete) return;
 
-    // Reverse the stats
-    const [score1, score2] = matchToDelete.score.split('-').map(Number);
-    const team1Won = score1 > score2;
-    const scoreDifference = Math.abs(score1 - score2);
+    try {
+      // Reverse the stats first
+      const [score1, score2] = matchToDelete.score.split('-').map(Number);
+      const team1Won = score1 > score2;
+      const scoreDifference = Math.abs(score1 - score2);
 
-    const reversedPlayers = players.map(player => {
-      const isInTeam1 = matchToDelete.team1.includes(player.name);
-      const isInTeam2 = matchToDelete.team2.includes(player.name);
+      const updatePromises = players.map(async (player) => {
+        const isInTeam1 = matchToDelete.team1.includes(player.name);
+        const isInTeam2 = matchToDelete.team2.includes(player.name);
 
-      if (isInTeam1 || isInTeam2) {
-        const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
-        
-        // Calculate the same changes that were applied
-        const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
-        const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
-        const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
-        const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
+        if (isInTeam1 || isInTeam2) {
+          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
+          
+          // Calculate the same changes that were applied
+          const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
+          const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
+          const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
+          const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
 
-        const baseChange = calculateRatingChange(
-          playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
-          playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
-        );
+          const baseChange = calculateRatingChange(
+            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
+            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
+          );
 
-        const marginMultiplier = 1 + (scoreDifference * 0.10);
-        const finalChange = Math.round(baseChange * marginMultiplier);
+          const marginMultiplier = 1 + (scoreDifference * 0.10);
+          const finalChange = Math.round(baseChange * marginMultiplier);
 
-        return {
-          ...player,
-          matches: player.matches - 1,
-          wins: player.wins - (playerWon ? 1 : 0),
-          losses: player.losses - (playerWon ? 0 : 1),
-          gamesWon: player.gamesWon - (isInTeam1 ? score1 : score2),
-          gamesLost: player.gamesLost - (isInTeam1 ? score2 : score1),
-          points: player.points - (playerWon ? finalChange : -finalChange)
-        };
-      }
-      return player;
-    });
+          const reversedStats = {
+            matches: player.matches - 1,
+            wins: player.wins - (playerWon ? 1 : 0),
+            losses: player.losses - (playerWon ? 0 : 1),
+            gamesWon: player.gamesWon - (isInTeam1 ? score1 : score2),
+            gamesLost: player.gamesLost - (isInTeam1 ? score2 : score1),
+            points: player.points - (playerWon ? finalChange : -finalChange)
+          };
 
-    setPlayers(reversedPlayers);
-    setMatches(matches.filter(m => m.id !== matchId));
+          return updateDoc(doc(db, 'players', player.id), reversedStats);
+        }
+      });
+
+      await Promise.all(updatePromises.filter(Boolean));
+      
+      // Then delete the match
+      await deleteDoc(doc(db, 'matches', matchId));
+    } catch (error) {
+      console.error("Error deleting match:", error);
+      alert("Failed to delete match. Please try again.");
+    }
   };
 
   // Get ranking - Simple ELO points based ranking
   const getRanking = () => {
     return [...players]
       .filter(p => p.matches > 0)
-      .sort((a, b) => {
-        // Primary: ELO points (highest first)
-        return b.points - a.points;
-      });
+      .sort((a, b) => b.points - a.points);
   };
 
   const getWinRate = (player) => {
@@ -237,36 +280,96 @@ const PadelCompetitionApp = () => {
   const ranking = getRanking();
 
   // Padel Court Background Component
-const PadelCourtBG = () => (
-  <div 
-    style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 999999,
-      backgroundColor: 'rgba(255, 0, 0, 0.5)',
-      pointerEvents: 'none'
-    }}
-  >
-    <div style={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      fontSize: '48px',
-      color: 'white',
-      fontWeight: 'bold'
-    }}>
-      BACKGROUND TEST
+  const PadelCourtBackground = () => (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      {/* Court container */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-10">
+        <svg
+          width="800"
+          height="400"
+          viewBox="0 0 800 400"
+          className="max-w-full max-h-full"
+        >
+          {/* Court outline */}
+          <rect
+            x="50"
+            y="50"
+            width="700"
+            height="300"
+            fill="none"
+            stroke="#059669"
+            strokeWidth="4"
+          />
+          
+          {/* Center net line */}
+          <line
+            x1="400"
+            y1="50"
+            x2="400"
+            y2="350"
+            stroke="#059669"
+            strokeWidth="3"
+          />
+          
+          {/* Service boxes */}
+          <line x1="50" y1="150" x2="400" y2="150" stroke="#059669" strokeWidth="2" />
+          <line x1="50" y1="250" x2="400" y2="250" stroke="#059669" strokeWidth="2" />
+          <line x1="400" y1="150" x2="750" y2="150" stroke="#059669" strokeWidth="2" />
+          <line x1="400" y1="250" x2="750" y2="250" stroke="#059669" strokeWidth="2" />
+          
+          {/* Side service lines */}
+          <line x1="200" y1="50" x2="200" y2="350" stroke="#059669" strokeWidth="2" />
+          <line x1="600" y1="50" x2="600" y2="350" stroke="#059669" strokeWidth="2" />
+          
+          {/* Back walls (glass effect) */}
+          <rect x="20" y="50" width="30" height="300" fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" strokeWidth="1" />
+          <rect x="750" y="50" width="30" height="300" fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" strokeWidth="1" />
+          
+          {/* Side walls */}
+          <rect x="50" y="20" width="700" height="30" fill="rgba(59, 130, 246, 0.05)" stroke="#3b82f6" strokeWidth="1" />
+          <rect x="50" y="350" width="700" height="30" fill="rgba(59, 130, 246, 0.05)" stroke="#3b82f6" strokeWidth="1" />
+          
+          {/* Net */}
+          <rect x="395" y="50" width="10" height="300" fill="rgba(16, 185, 129, 0.3)" />
+          
+          {/* Decorative elements */}
+          <circle cx="400" cy="200" r="3" fill="#059669" />
+        </svg>
+      </div>
+      
+      {/* Additional decorative courts in corners */}
+      <div className="absolute top-0 left-0 w-40 h-20 opacity-5">
+        <svg width="100%" height="100%" viewBox="0 0 200 100">
+          <rect x="10" y="10" width="180" height="80" fill="none" stroke="#059669" strokeWidth="2" />
+          <line x1="100" y1="10" x2="100" y2="90" stroke="#059669" strokeWidth="1" />
+        </svg>
+      </div>
+      
+      <div className="absolute bottom-0 right-0 w-40 h-20 opacity-5">
+        <svg width="100%" height="100%" viewBox="0 0 200 100">
+          <rect x="10" y="10" width="180" height="80" fill="none" stroke="#059669" strokeWidth="2" />
+          <line x1="100" y1="10" x2="100" y2="90" stroke="#059669" strokeWidth="1" />
+        </svg>
+      </div>
     </div>
-  </div>
-);
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-full mb-4">
+            <Trophy className="w-8 h-8 text-white animate-pulse" />
+          </div>
+          <p className="text-slate-600 text-lg font-medium">Loading Padel League...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 text-slate-800" style={{backgroundColor: 'red', border: '10px solid blue'}}>
-    <PadelCourtBG />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 text-slate-800 relative">
+      <PadelCourtBackground />
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
         {/* Modern Header */}
