@@ -333,53 +333,7 @@ const PadelCompetitionApp = () => {
 
   const ranking = getRanking();
 
-  // Enhanced Padel Court Background
-  const PadelCourtBackground = () => (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Main court */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-20">
-        <svg
-          width="1000"
-          height="500"
-          viewBox="0 0 1000 500"
-          className="max-w-full max-h-full"
-        >
-          {/* Court surface */}
-          <rect x="100" y="100" width="800" height="300" fill="rgba(34, 197, 94, 0.1)" />
-          
-          {/* Court outline */}
-          <rect
-            x="100"
-            y="100"
-            width="800"
-            height="300"
-            fill="none"
-            stroke="rgba(34, 197, 94, 0.8)"
-            strokeWidth="4"
-          />
-          
-          {/* Center net line */}
-          <line
-            x1="500"
-            y1="100"
-            x2="500"
-            y2="400"
-            stroke="rgba(34, 197, 94, 0.9)"
-            strokeWidth="4"
-          />
-          
-          {/* Service boxes */}
-          <line x1="100" y1="200" x2="500" y2="200" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
-          <line x1="100" y1="300" x2="500" y2="300" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
-          <line x1="500" y1="200" x2="900" y2="200" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
-          <line x1="500" y1="300" x2="900" y2="300" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
-          
-          {/* Side service lines */}
-          <line x1="250" y1="100" x2="250" y2="400" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
-          <line x1="750" y1="100" x2="750" y2="400" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
-          
-          {/* Back walls (glass effect) */}
-          <rect x="50" y="100" width="50" height="300" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
+)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
           <rect x="900" y="100" width="50" height="300" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
           
           {/* Side walls */}
