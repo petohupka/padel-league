@@ -30,14 +30,10 @@ const PadelCompetitionApp = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  // Load data from Firebase
   useEffect(() => {
-    console.log('Setting up Firebase listeners...');
-    
     const unsubscribePlayers = onSnapshot(
       collection(db, 'players'), 
       (snapshot) => {
-        console.log('Players updated:', snapshot.size, 'documents');
         const playersData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -54,7 +50,6 @@ const PadelCompetitionApp = () => {
     const unsubscribeMatches = onSnapshot(
       query(collection(db, 'matches'), orderBy('createdAt', 'desc')), 
       (snapshot) => {
-        console.log('Matches updated:', snapshot.size, 'documents');
         const matchesData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -67,24 +62,20 @@ const PadelCompetitionApp = () => {
     );
 
     return () => {
-      console.log('Cleaning up Firebase listeners...');
       unsubscribePlayers();
       unsubscribeMatches();
     };
   }, []);
 
-  // Calculate ELO rating change
   const calculateRatingChange = (winnerRating, loserRating) => {
     const K = 40;
     const expectedWin = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
     return Math.round(K * (1 - expectedWin));
   };
 
-  // Add new player to Firebase
   const addPlayer = async () => {
     if (newPlayerName.trim()) {
       try {
-        console.log('Adding player:', newPlayerName.trim());
         await addDoc(collection(db, 'players'), {
           name: newPlayerName.trim(),
           matches: 0,
@@ -104,7 +95,6 @@ const PadelCompetitionApp = () => {
     }
   };
 
-  // Remove player from Firebase
   const removePlayer = async (playerId) => {
     const playerToDelete = players.find(p => p.id === playerId);
     if (!playerToDelete) return;
@@ -115,7 +105,6 @@ const PadelCompetitionApp = () => {
     }
 
     try {
-      console.log('Removing player:', playerId);
       await deleteDoc(doc(db, 'players', playerId));
     } catch (error) {
       console.error("Error removing player:", error);
@@ -123,11 +112,9 @@ const PadelCompetitionApp = () => {
     }
   };
 
-  // Add match to Firebase
   const addMatch = async () => {
     const { team1Player1, team1Player2, team2Player1, team2Player2, team1Score, team2Score, date } = matchForm;
     
-    // Validation
     if (!team1Player1 || !team1Player2 || !team2Player1 || !team2Player2 || !team1Score || !team2Score) {
       alert('Please fill all fields!');
       return;
@@ -156,15 +143,11 @@ const PadelCompetitionApp = () => {
     const scoreDifference = Math.abs(score1 - score2);
 
     try {
-      console.log('Adding match...');
-      
-      // Get current player ratings (before any updates)
       const team1Players = players.filter(p => [team1Player1, team1Player2].includes(p.name));
       const team2Players = players.filter(p => [team2Player1, team2Player2].includes(p.name));
       const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
       const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
 
-      // Pre-calculate all rating changes using CURRENT ratings
       const playerUpdates = players.map(player => {
         const isInTeam1 = [team1Player1, team1Player2].includes(player.name);
         const isInTeam2 = [team2Player1, team2Player2].includes(player.name);
@@ -172,13 +155,11 @@ const PadelCompetitionApp = () => {
         if (isInTeam1 || isInTeam2) {
           const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
           
-          // Base ELO change using PRE-MATCH ratings
           const baseChange = calculateRatingChange(
             playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
             playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
           );
 
-          // Apply score margin bonus/penalty (10% per game difference)
           const marginMultiplier = 1 + (scoreDifference * 0.10);
           const finalChange = Math.round(baseChange * marginMultiplier);
 
@@ -197,7 +178,6 @@ const PadelCompetitionApp = () => {
         return null;
       }).filter(Boolean);
 
-      // Create match record in Firebase
       const matchData = {
         team1: [team1Player1, team1Player2],
         team2: [team2Player1, team2Player2],
@@ -209,14 +189,12 @@ const PadelCompetitionApp = () => {
 
       await addDoc(collection(db, 'matches'), matchData);
 
-      // Update all players with pre-calculated stats
       const updatePromises = playerUpdates.map(update => 
         updateDoc(doc(db, 'players', update.playerId), update.updatedStats)
       );
 
       await Promise.all(updatePromises);
 
-      // Reset form
       setMatchForm({
         team1Player1: '',
         team1Player2: '',
@@ -233,7 +211,6 @@ const PadelCompetitionApp = () => {
     }
   };
 
-  // Delete match from Firebase
   const deleteMatch = async (matchId) => {
     const matchToDelete = matches.find(m => m.id === matchId);
     if (!matchToDelete) return;
@@ -243,14 +220,10 @@ const PadelCompetitionApp = () => {
     }
 
     try {
-      console.log('Deleting match:', matchId);
-      
-      // Calculate stat reversals
       const [score1, score2] = matchToDelete.score.split('-').map(Number);
       const team1Won = score1 > score2;
       const scoreDifference = Math.abs(score1 - score2);
 
-      // Get current player ratings for calculations
       const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
       const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
       
@@ -262,7 +235,6 @@ const PadelCompetitionApp = () => {
       const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
       const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
 
-      // Calculate reversals
       const playerUpdates = players.map(player => {
         const isInTeam1 = matchToDelete.team1.includes(player.name);
         const isInTeam2 = matchToDelete.team2.includes(player.name);
@@ -293,14 +265,11 @@ const PadelCompetitionApp = () => {
         return null;
       }).filter(Boolean);
 
-      // Update all players first
       const updatePromises = playerUpdates.map(update => 
         updateDoc(doc(db, 'players', update.playerId), update.reversedStats)
       );
 
       await Promise.all(updatePromises);
-      
-      // Then delete the match
       await deleteDoc(doc(db, 'matches', matchId));
     } catch (error) {
       console.error("Error deleting match:", error);
@@ -308,7 +277,6 @@ const PadelCompetitionApp = () => {
     }
   };
 
-  // Get ranking
   const getRanking = () => {
     return [...players]
       .filter(p => p.matches > 0)
@@ -333,38 +301,61 @@ const PadelCompetitionApp = () => {
 
   const ranking = getRanking();
 
-)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
-          <rect x="900" y="100" width="50" height="300" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
-          
-          {/* Side walls */}
-          <rect x="100" y="50" width="800" height="50" fill="rgba(59, 130, 246, 0.1)" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" />
-          <rect x="100" y="400" width="800" height="50" fill="rgba(59, 130, 246, 0.1)" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" />
-          
-          {/* Net with more detail */}
-          <rect x="495" y="100" width="10" height="300" fill="rgba(34, 197, 94, 0.4)" />
-          <line x1="495" y1="120" x2="505" y2="120" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
-          <line x1="495" y1="150" x2="505" y2="150" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
-          <line x1="495" y1="180" x2="505" y2="180" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
-          
-          {/* Center circle */}
-          <circle cx="500" cy="250" r="5" fill="rgba(34, 197, 94, 0.8)" />
-        </svg>
+  const PadelCourtBackground = () => (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div className="absolute inset-0 bg-gradient-to-br from-sky-400/20 via-blue-500/15 to-cyan-600/25" />
+      
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative">
+          <div 
+            className="w-[90vw] max-w-[1000px] h-[45vw] max-h-[500px] relative"
+            style={{ 
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.35) 50%, rgba(29, 78, 216, 0.20) 100%)',
+              border: '4px solid rgba(255, 255, 255, 0.4)',
+              borderRadius: '8px',
+              backdropFilter: 'blur(1px)'
+            }}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1000 500">
+              <rect x="50" y="50" width="900" height="400" fill="none" stroke="rgba(255, 255, 255, 0.8)" strokeWidth="6" rx="6" />
+              <line x1="500" y1="50" x2="500" y2="450" stroke="rgba(255, 255, 255, 0.9)" strokeWidth="8" />
+              <line x1="50" y1="175" x2="500" y2="175" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
+              <line x1="50" y1="325" x2="500" y2="325" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
+              <line x1="500" y1="175" x2="950" y2="175" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
+              <line x1="500" y1="325" x2="950" y2="325" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
+              <line x1="200" y1="50" x2="200" y2="450" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
+              <line x1="800" y1="50" x2="800" y2="450" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="4" />
+              <rect x="495" y="50" width="10" height="400" fill="rgba(0, 0, 0, 0.6)" />
+              {Array.from({ length: 20 }, (_, i) => (
+                <line key={i} x1="495" y1={50 + (i * 20)} x2="505" y2={50 + (i * 20)} 
+                  stroke="rgba(255, 255, 255, 0.3)" strokeWidth="1" />
+              ))}
+            </svg>
+            
+            <div className="absolute -left-12 top-0 w-10 h-full bg-gradient-to-r from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-l-2 border-slate-300/40" />
+            <div className="absolute -right-12 top-0 w-10 h-full bg-gradient-to-l from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-r-2 border-slate-300/40" />
+            <div className="absolute -top-8 left-0 w-full h-6 bg-gradient-to-b from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-t-2 border-slate-300/40" />
+            <div className="absolute -bottom-8 left-0 w-full h-6 bg-gradient-to-t from-slate-400/30 to-slate-300/20 backdrop-blur-sm border-b-2 border-slate-300/40" />
+            
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/5" />
+          </div>
+        </div>
       </div>
       
-      {/* Corner decorative courts */}
-      <div className="absolute top-10 left-10 w-32 h-16 opacity-10 rotate-12">
-        <svg width="100%" height="100%" viewBox="0 0 200 100">
-          <rect x="10" y="10" width="180" height="80" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="3" />
-          <line x1="100" y1="10" x2="100" y2="90" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="2" />
-        </svg>
+      <div className="absolute top-8 left-8 opacity-15 rotate-12 scale-50">
+        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
+      </div>
+      <div className="absolute top-8 right-8 opacity-15 -rotate-6 scale-50">
+        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
+      </div>
+      <div className="absolute bottom-8 left-8 opacity-15 rotate-6 scale-50">
+        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
+      </div>
+      <div className="absolute bottom-8 right-8 opacity-15 -rotate-12 scale-50">
+        <div className="w-64 h-32 bg-gradient-to-br from-blue-500/20 to-blue-600/30 border-2 border-white/30 rounded" />
       </div>
       
-      <div className="absolute bottom-10 right-10 w-32 h-16 opacity-10 -rotate-12">
-        <svg width="100%" height="100%" viewBox="0 0 200 100">
-          <rect x="10" y="10" width="180" height="80" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="3" />
-          <line x1="100" y1="10" x2="100" y2="90" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="2" />
-        </svg>
-      </div>
+      <div className="absolute inset-0 bg-gradient-radial from-transparent via-blue-500/5 to-transparent" />
     </div>
   );
 
@@ -386,7 +377,6 @@ const PadelCompetitionApp = () => {
       <PadelCourtBackground />
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
-        {/* Modern Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center gap-4 mb-6">
             <div className="bg-gradient-to-r from-blue-600 to-emerald-600 p-4 rounded-2xl shadow-lg">
@@ -399,7 +389,6 @@ const PadelCompetitionApp = () => {
           <p className="text-slate-600 text-lg">Elite player rankings & match tracking</p>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
             <div className="flex items-center gap-4">
@@ -441,7 +430,6 @@ const PadelCompetitionApp = () => {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {/* Rankings */}
           <div className="bg-white/80 backdrop-blur-sm border border-white/30 rounded-3xl shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-8 border-b border-slate-200/50">
               <div className="flex items-center justify-between">
@@ -509,7 +497,6 @@ const PadelCompetitionApp = () => {
             </div>
           </div>
 
-          {/* Match History */}
           <div className="bg-white/80 backdrop-blur-sm border border-white/30 rounded-3xl shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-slate-50 to-emerald-50 p-8 border-b border-slate-200/50">
               <div className="flex items-center justify-between">
@@ -590,7 +577,6 @@ const PadelCompetitionApp = () => {
           </div>
         </div>
 
-        {/* Add Player Modal */}
         {showAddPlayer && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white/95 backdrop-blur rounded-3xl p-8 w-full max-w-md shadow-2xl">
@@ -625,7 +611,6 @@ const PadelCompetitionApp = () => {
           </div>
         )}
 
-        {/* Add Match Modal */}
         {showAddMatch && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white/95 backdrop-blur rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
