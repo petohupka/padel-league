@@ -238,32 +238,73 @@ const PadelCompetitionApp = () => {
 
   // Padel Court Background Component
 const PadelCourtBG = () => (
-  <div className="fixed inset-0 -z-10">
+  <div className="fixed inset-0 -z-10 overflow-hidden">
+    {/* Main court SVG */}
     <svg 
-      className="absolute inset-0 w-full h-full opacity-15" 
+      className="absolute inset-0 w-full h-full text-slate-300" 
       viewBox="0 0 400 200" 
       fill="none"
+      style={{ opacity: 0.2 }}
     >
-      {/* Court outline */}
-      <rect x="50" y="40" width="300" height="120" stroke="currentColor" strokeWidth="3" fill="none"/>
+      {/* Court outline - main rectangle */}
+      <rect 
+        x="50" 
+        y="40" 
+        width="300" 
+        height="120" 
+        stroke="currentColor" 
+        strokeWidth="4" 
+        fill="none"
+      />
       
-      {/* Net line */}
-      <line x1="200" y1="40" x2="200" y2="160" stroke="currentColor" strokeWidth="4"/>
+      {/* Net line - center divider */}
+      <line 
+        x1="200" 
+        y1="40" 
+        x2="200" 
+        y2="160" 
+        stroke="currentColor" 
+        strokeWidth="6"
+      />
       
-      {/* Service boxes */}
-      <line x1="50" y1="85" x2="350" y2="85" stroke="currentColor" strokeWidth="2"/>
-      <line x1="50" y1="115" x2="350" y2="115" stroke="currentColor" strokeWidth="2"/>
+      {/* Service boxes - horizontal lines */}
+      <line x1="50" y1="85" x2="350" y2="85" stroke="currentColor" strokeWidth="3"/>
+      <line x1="50" y1="115" x2="350" y2="115" stroke="currentColor" strokeWidth="3"/>
       
-      {/* Side service lines */}
-      <line x1="125" y1="40" x2="125" y2="160" stroke="currentColor" strokeWidth="2"/>
-      <line x1="275" y1="40" x2="275" y2="160" stroke="currentColor" strokeWidth="2"/>
+      {/* Side service lines - vertical lines */}
+      <line x1="125" y1="40" x2="125" y2="160" stroke="currentColor" strokeWidth="3"/>
+      <line x1="275" y1="40" x2="275" y2="160" stroke="currentColor" strokeWidth="3"/>
       
-      {/* Glass walls (padel specific) */}
-      <rect x="45" y="35" width="8" height="130" fill="currentColor" opacity="0.4"/>
-      <rect x="347" y="35" width="8" height="130" fill="currentColor" opacity="0.4"/>
-      <rect x="50" y="35" width="300" height="8" fill="currentColor" opacity="0.4"/>
-      <rect x="50" y="157" width="300" height="8" fill="currentColor" opacity="0.4"/>
+      {/* Glass walls - padel specific thick borders */}
+      <rect x="42" y="32" width="8" height="136" fill="currentColor" opacity="0.6"/>
+      <rect x="350" y="32" width="8" height="136" fill="currentColor" opacity="0.6"/>
+      <rect x="50" y="32" width="300" height="8" fill="currentColor" opacity="0.6"/>
+      <rect x="50" y="160" width="300" height="8" fill="currentColor" opacity="0.6"/>
+      
+      {/* Corner reinforcements */}
+      <circle cx="50" cy="40" r="3" fill="currentColor" opacity="0.5"/>
+      <circle cx="350" cy="40" r="3" fill="currentColor" opacity="0.5"/>
+      <circle cx="50" cy="160" r="3" fill="currentColor" opacity="0.5"/>
+      <circle cx="350" cy="160" r="3" fill="currentColor" opacity="0.5"/>
     </svg>
+    
+    {/* Additional pattern overlay */}
+    <div 
+      className="absolute inset-0 opacity-10"
+      style={{
+        backgroundImage: `
+          radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
+          radial-gradient(circle at 75% 75%, rgba(16, 185, 129, 0.3) 0%, transparent 50%),
+          repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 40px,
+            rgba(148, 163, 184, 0.1) 40px,
+            rgba(148, 163, 184, 0.1) 42px
+          )
+        `
+      }}
+    />
   </div>
 );
 
