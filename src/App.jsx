@@ -260,7 +260,7 @@ const PadelCourtBG = () => (
 );
 
   return (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 text-slate-800">
+<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 text-slate-800" style={{backgroundColor: 'red', border: '10px solid blue'}}>
     <PadelCourtBG />
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
