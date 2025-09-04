@@ -1,44 +1,4 @@
-// Delete match from Firebase
-  const deleteMatch = async (matchId) => {
-    const matchToDelete = matches.find(m => m.id === matchId);
-    if (!matchToDelete) return;
-
-    try {
-      // CRITICAL: Calculate all stat reversals BEFORE any Firebase updates
-      const [score1, score2] = matchToDelete.score.split('-').map(Number);
-      const team1Won = score1 > score2;
-      const scoreDifference = Math.abs(score1 - score2);
-
-      // Get current player ratings (before any updates) 
-      const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
-      const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
-      const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
-      const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
-
-      // Pre-calculate all stat reversals using CURRENT ratings
-      const playerUpdates = players.map(player => {
-        const isInTeam1 = matchToDelete.team1.includes(player.name);
-        const isInTeam2 = matchToDelete.team2.includes(player.name);
-
-        if (isInTeam1 || isInTeam2) {
-          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
-          
-          // Calculate the same changes that were originally applied
-          const baseChange = calculateRatingChange(
-            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
-            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
-          );
-
-          const marginMultiplier = 1 + (scoreDifference * 0.10);
-          const finalChange = Math.round(baseChange * marginMultiplier);
-
-          return {
-            playerId: player.id,
-            reversedStats: {
-              matches: player.matches - 1,
-              wins: player.wins - (playerWon ? 1 : 0),
-              losses: player.losses - (playerWon ? 0 : 1),
-              gamesWon: player.gamesWon - (isInTeam1 ? score1import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, Users, Plus, X, Medal, Star, Calendar, Target } from 'lucide-react';
 import { db } from './firebase';
 import { 
@@ -72,27 +32,42 @@ const PadelCompetitionApp = () => {
 
   // Load data from Firebase
   useEffect(() => {
-    const unsubscribePlayers = onSnapshot(collection(db, 'players'), (snapshot) => {
-      const playersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setPlayers(playersData);
-      setLoading(false);
-    });
+    console.log('Setting up Firebase listeners...');
+    
+    const unsubscribePlayers = onSnapshot(
+      collection(db, 'players'), 
+      (snapshot) => {
+        console.log('Players updated:', snapshot.size, 'documents');
+        const playersData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setPlayers(playersData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error loading players:", error);
+        setLoading(false);
+      }
+    );
 
     const unsubscribeMatches = onSnapshot(
-      query(collection(db, 'matches'), orderBy('date', 'desc')), 
+      query(collection(db, 'matches'), orderBy('createdAt', 'desc')), 
       (snapshot) => {
+        console.log('Matches updated:', snapshot.size, 'documents');
         const matchesData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
         setMatches(matchesData);
+      },
+      (error) => {
+        console.error("Error loading matches:", error);
       }
     );
 
     return () => {
+      console.log('Cleaning up Firebase listeners...');
       unsubscribePlayers();
       unsubscribeMatches();
     };
@@ -109,6 +84,7 @@ const PadelCompetitionApp = () => {
   const addPlayer = async () => {
     if (newPlayerName.trim()) {
       try {
+        console.log('Adding player:', newPlayerName.trim());
         await addDoc(collection(db, 'players'), {
           name: newPlayerName.trim(),
           matches: 0,
@@ -130,7 +106,6 @@ const PadelCompetitionApp = () => {
 
   // Remove player from Firebase
   const removePlayer = async (playerId) => {
-    // Only allow deletion of players with no matches
     const playerToDelete = players.find(p => p.id === playerId);
     if (!playerToDelete) return;
     
@@ -140,6 +115,7 @@ const PadelCompetitionApp = () => {
     }
 
     try {
+      console.log('Removing player:', playerId);
       await deleteDoc(doc(db, 'players', playerId));
     } catch (error) {
       console.error("Error removing player:", error);
@@ -180,6 +156,47 @@ const PadelCompetitionApp = () => {
     const scoreDifference = Math.abs(score1 - score2);
 
     try {
+      console.log('Adding match...');
+      
+      // Get current player ratings (before any updates)
+      const team1Players = players.filter(p => [team1Player1, team1Player2].includes(p.name));
+      const team2Players = players.filter(p => [team2Player1, team2Player2].includes(p.name));
+      const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
+      const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
+
+      // Pre-calculate all rating changes using CURRENT ratings
+      const playerUpdates = players.map(player => {
+        const isInTeam1 = [team1Player1, team1Player2].includes(player.name);
+        const isInTeam2 = [team2Player1, team2Player2].includes(player.name);
+
+        if (isInTeam1 || isInTeam2) {
+          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
+          
+          // Base ELO change using PRE-MATCH ratings
+          const baseChange = calculateRatingChange(
+            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
+            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
+          );
+
+          // Apply score margin bonus/penalty (10% per game difference)
+          const marginMultiplier = 1 + (scoreDifference * 0.10);
+          const finalChange = Math.round(baseChange * marginMultiplier);
+
+          return {
+            playerId: player.id,
+            updatedStats: {
+              matches: player.matches + 1,
+              wins: player.wins + (playerWon ? 1 : 0),
+              losses: player.losses + (playerWon ? 0 : 1),
+              gamesWon: player.gamesWon + (isInTeam1 ? score1 : score2),
+              gamesLost: player.gamesLost + (isInTeam1 ? score2 : score1),
+              points: player.points + (playerWon ? finalChange : -finalChange)
+            }
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
       // Create match record in Firebase
       const matchData = {
         team1: [team1Player1, team1Player2],
@@ -192,44 +209,12 @@ const PadelCompetitionApp = () => {
 
       await addDoc(collection(db, 'matches'), matchData);
 
-      // Update player statistics in Firebase
-      const updatePromises = players.map(async (player) => {
-        const isInTeam1 = [team1Player1, team1Player2].includes(player.name);
-        const isInTeam2 = [team2Player1, team2Player2].includes(player.name);
+      // Update all players with pre-calculated stats
+      const updatePromises = playerUpdates.map(update => 
+        updateDoc(doc(db, 'players', update.playerId), update.updatedStats)
+      );
 
-        if (isInTeam1 || isInTeam2) {
-          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
-          
-          // Calculate team averages for ELO (using current ratings)
-          const team1Players = players.filter(p => [team1Player1, team1Player2].includes(p.name));
-          const team2Players = players.filter(p => [team2Player1, team2Player2].includes(p.name));
-          const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
-          const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
-
-          // Base ELO change
-          const baseChange = calculateRatingChange(
-            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
-            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
-          );
-
-          // Apply score margin bonus/penalty (10% per game difference)
-          const marginMultiplier = 1 + (scoreDifference * 0.10);
-          const finalChange = Math.round(baseChange * marginMultiplier);
-
-          const updatedStats = {
-            matches: player.matches + 1,
-            wins: player.wins + (playerWon ? 1 : 0),
-            losses: player.losses + (playerWon ? 0 : 1),
-            gamesWon: player.gamesWon + (isInTeam1 ? score1 : score2),
-            gamesLost: player.gamesLost + (isInTeam1 ? score2 : score1),
-            points: player.points + (playerWon ? finalChange : -finalChange)
-          };
-
-          return updateDoc(doc(db, 'players', player.id), updatedStats);
-        }
-      });
-
-      await Promise.all(updatePromises.filter(Boolean));
+      await Promise.all(updatePromises);
 
       // Reset form
       setMatchForm({
@@ -253,25 +238,38 @@ const PadelCompetitionApp = () => {
     const matchToDelete = matches.find(m => m.id === matchId);
     if (!matchToDelete) return;
 
+    if (!confirm('Are you sure you want to delete this match? This will reverse all player stats.')) {
+      return;
+    }
+
     try {
-      // Reverse the stats first
+      console.log('Deleting match:', matchId);
+      
+      // Calculate stat reversals
       const [score1, score2] = matchToDelete.score.split('-').map(Number);
       const team1Won = score1 > score2;
       const scoreDifference = Math.abs(score1 - score2);
 
-      const updatePromises = players.map(async (player) => {
+      // Get current player ratings for calculations
+      const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
+      const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
+      
+      if (team1Players.length < 2 || team2Players.length < 2) {
+        alert('Cannot delete match: Some players may have been deleted.');
+        return;
+      }
+
+      const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
+      const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
+
+      // Calculate reversals
+      const playerUpdates = players.map(player => {
         const isInTeam1 = matchToDelete.team1.includes(player.name);
         const isInTeam2 = matchToDelete.team2.includes(player.name);
 
         if (isInTeam1 || isInTeam2) {
           const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
           
-          // Calculate the same changes that were applied
-          const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
-          const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
-          const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
-          const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
-
           const baseChange = calculateRatingChange(
             playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
             playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
@@ -280,20 +278,27 @@ const PadelCompetitionApp = () => {
           const marginMultiplier = 1 + (scoreDifference * 0.10);
           const finalChange = Math.round(baseChange * marginMultiplier);
 
-          const reversedStats = {
-            matches: player.matches - 1,
-            wins: player.wins - (playerWon ? 1 : 0),
-            losses: player.losses - (playerWon ? 0 : 1),
-            gamesWon: player.gamesWon - (isInTeam1 ? score1 : score2),
-            gamesLost: player.gamesLost - (isInTeam1 ? score2 : score1),
-            points: player.points - (playerWon ? finalChange : -finalChange)
+          return {
+            playerId: player.id,
+            reversedStats: {
+              matches: Math.max(0, player.matches - 1),
+              wins: Math.max(0, player.wins - (playerWon ? 1 : 0)),
+              losses: Math.max(0, player.losses - (playerWon ? 0 : 1)),
+              gamesWon: Math.max(0, player.gamesWon - (isInTeam1 ? score1 : score2)),
+              gamesLost: Math.max(0, player.gamesLost - (isInTeam1 ? score2 : score1)),
+              points: player.points - (playerWon ? finalChange : -finalChange)
+            }
           };
-
-          return updateDoc(doc(db, 'players', player.id), reversedStats);
         }
-      });
+        return null;
+      }).filter(Boolean);
 
-      await Promise.all(updatePromises.filter(Boolean));
+      // Update all players first
+      const updatePromises = playerUpdates.map(update => 
+        updateDoc(doc(db, 'players', update.playerId), update.reversedStats)
+      );
+
+      await Promise.all(updatePromises);
       
       // Then delete the match
       await deleteDoc(doc(db, 'matches', matchId));
@@ -303,7 +308,7 @@ const PadelCompetitionApp = () => {
     }
   };
 
-  // Get ranking - Simple ELO points based ranking
+  // Get ranking
   const getRanking = () => {
     return [...players]
       .filter(p => p.matches > 0)
@@ -328,76 +333,82 @@ const PadelCompetitionApp = () => {
 
   const ranking = getRanking();
 
-  // Padel Court Background Component
+  // Enhanced Padel Court Background
   const PadelCourtBackground = () => (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Court container */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-10">
+      {/* Main court */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-20">
         <svg
-          width="800"
-          height="400"
-          viewBox="0 0 800 400"
+          width="1000"
+          height="500"
+          viewBox="0 0 1000 500"
           className="max-w-full max-h-full"
         >
+          {/* Court surface */}
+          <rect x="100" y="100" width="800" height="300" fill="rgba(34, 197, 94, 0.1)" />
+          
           {/* Court outline */}
           <rect
-            x="50"
-            y="50"
-            width="700"
+            x="100"
+            y="100"
+            width="800"
             height="300"
             fill="none"
-            stroke="#059669"
+            stroke="rgba(34, 197, 94, 0.8)"
             strokeWidth="4"
           />
           
           {/* Center net line */}
           <line
-            x1="400"
-            y1="50"
-            x2="400"
-            y2="350"
-            stroke="#059669"
-            strokeWidth="3"
+            x1="500"
+            y1="100"
+            x2="500"
+            y2="400"
+            stroke="rgba(34, 197, 94, 0.9)"
+            strokeWidth="4"
           />
           
           {/* Service boxes */}
-          <line x1="50" y1="150" x2="400" y2="150" stroke="#059669" strokeWidth="2" />
-          <line x1="50" y1="250" x2="400" y2="250" stroke="#059669" strokeWidth="2" />
-          <line x1="400" y1="150" x2="750" y2="150" stroke="#059669" strokeWidth="2" />
-          <line x1="400" y1="250" x2="750" y2="250" stroke="#059669" strokeWidth="2" />
+          <line x1="100" y1="200" x2="500" y2="200" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+          <line x1="100" y1="300" x2="500" y2="300" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+          <line x1="500" y1="200" x2="900" y2="200" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+          <line x1="500" y1="300" x2="900" y2="300" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
           
           {/* Side service lines */}
-          <line x1="200" y1="50" x2="200" y2="350" stroke="#059669" strokeWidth="2" />
-          <line x1="600" y1="50" x2="600" y2="350" stroke="#059669" strokeWidth="2" />
+          <line x1="250" y1="100" x2="250" y2="400" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
+          <line x1="750" y1="100" x2="750" y2="400" stroke="rgba(34, 197, 94, 0.6)" strokeWidth="2" />
           
           {/* Back walls (glass effect) */}
-          <rect x="20" y="50" width="30" height="300" fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" strokeWidth="1" />
-          <rect x="750" y="50" width="30" height="300" fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" strokeWidth="1" />
+          <rect x="50" y="100" width="50" height="300" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
+          <rect x="900" y="100" width="50" height="300" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
           
           {/* Side walls */}
-          <rect x="50" y="20" width="700" height="30" fill="rgba(59, 130, 246, 0.05)" stroke="#3b82f6" strokeWidth="1" />
-          <rect x="50" y="350" width="700" height="30" fill="rgba(59, 130, 246, 0.05)" stroke="#3b82f6" strokeWidth="1" />
+          <rect x="100" y="50" width="800" height="50" fill="rgba(59, 130, 246, 0.1)" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" />
+          <rect x="100" y="400" width="800" height="50" fill="rgba(59, 130, 246, 0.1)" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" />
           
-          {/* Net */}
-          <rect x="395" y="50" width="10" height="300" fill="rgba(16, 185, 129, 0.3)" />
+          {/* Net with more detail */}
+          <rect x="495" y="100" width="10" height="300" fill="rgba(34, 197, 94, 0.4)" />
+          <line x1="495" y1="120" x2="505" y2="120" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
+          <line x1="495" y1="150" x2="505" y2="150" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
+          <line x1="495" y1="180" x2="505" y2="180" stroke="rgba(34, 197, 94, 0.3)" strokeWidth="1" />
           
-          {/* Decorative elements */}
-          <circle cx="400" cy="200" r="3" fill="#059669" />
+          {/* Center circle */}
+          <circle cx="500" cy="250" r="5" fill="rgba(34, 197, 94, 0.8)" />
         </svg>
       </div>
       
-      {/* Additional decorative courts in corners */}
-      <div className="absolute top-0 left-0 w-40 h-20 opacity-5">
+      {/* Corner decorative courts */}
+      <div className="absolute top-10 left-10 w-32 h-16 opacity-10 rotate-12">
         <svg width="100%" height="100%" viewBox="0 0 200 100">
-          <rect x="10" y="10" width="180" height="80" fill="none" stroke="#059669" strokeWidth="2" />
-          <line x1="100" y1="10" x2="100" y2="90" stroke="#059669" strokeWidth="1" />
+          <rect x="10" y="10" width="180" height="80" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="3" />
+          <line x1="100" y1="10" x2="100" y2="90" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="2" />
         </svg>
       </div>
       
-      <div className="absolute bottom-0 right-0 w-40 h-20 opacity-5">
+      <div className="absolute bottom-10 right-10 w-32 h-16 opacity-10 -rotate-12">
         <svg width="100%" height="100%" viewBox="0 0 200 100">
-          <rect x="10" y="10" width="180" height="80" fill="none" stroke="#059669" strokeWidth="2" />
-          <line x1="100" y1="10" x2="100" y2="90" stroke="#059669" strokeWidth="1" />
+          <rect x="10" y="10" width="180" height="80" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="3" />
+          <line x1="100" y1="10" x2="100" y2="90" stroke="rgba(34, 197, 94, 0.8)" strokeWidth="2" />
         </svg>
       </div>
     </div>
@@ -434,7 +445,7 @@ const PadelCompetitionApp = () => {
           <p className="text-slate-600 text-lg">Elite player rankings & match tracking</p>
         </div>
 
-        {/* Stats Cards - Modern Glass Morphism */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
             <div className="flex items-center gap-4">
@@ -476,7 +487,7 @@ const PadelCompetitionApp = () => {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {/* Rankings - Modern Card */}
+          {/* Rankings */}
           <div className="bg-white/80 backdrop-blur-sm border border-white/30 rounded-3xl shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-8 border-b border-slate-200/50">
               <div className="flex items-center justify-between">
@@ -544,7 +555,7 @@ const PadelCompetitionApp = () => {
             </div>
           </div>
 
-          {/* Match History - Modern Card */}
+          {/* Match History */}
           <div className="bg-white/80 backdrop-blur-sm border border-white/30 rounded-3xl shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-slate-50 to-emerald-50 p-8 border-b border-slate-200/50">
               <div className="flex items-center justify-between">
@@ -554,7 +565,8 @@ const PadelCompetitionApp = () => {
                 </h2>
                 <button
                   onClick={() => setShowAddMatch(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  disabled={players.length < 4}
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-300 disabled:to-slate-400 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   Add Match
@@ -640,12 +652,16 @@ const PadelCompetitionApp = () => {
               <div className="flex gap-3">
                 <button
                   onClick={addPlayer}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-6 rounded-2xl transition-all duration-200 font-semibold"
+                  disabled={!newPlayerName.trim()}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-300 disabled:to-slate-400 text-white py-3 px-6 rounded-2xl transition-all duration-200 font-semibold disabled:cursor-not-allowed"
                 >
                   Add Player
                 </button>
                 <button
-                  onClick={() => setShowAddPlayer(false)}
+                  onClick={() => {
+                    setShowAddPlayer(false);
+                    setNewPlayerName('');
+                  }}
                   className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 px-6 rounded-2xl transition-all duration-200 font-semibold"
                 >
                   Cancel
@@ -756,7 +772,7 @@ const PadelCompetitionApp = () => {
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">
                     <strong>Dominant wins</strong> (4-0, 5-1) earn <strong className="text-emerald-700">30-50% more points</strong> than close wins (4-3, 5-4). 
-                    Show your skills on the court! 🎾
+                    Show your skills on the court!
                   </p>
                 </div>
               </div>
@@ -769,7 +785,18 @@ const PadelCompetitionApp = () => {
                   Add Match
                 </button>
                 <button
-                  onClick={() => setShowAddMatch(false)}
+                  onClick={() => {
+                    setShowAddMatch(false);
+                    setMatchForm({
+                      team1Player1: '',
+                      team1Player2: '',
+                      team2Player1: '',
+                      team2Player2: '',
+                      team1Score: '',
+                      team2Score: '',
+                      date: new Date().toISOString().split('T')[0]
+                    });
+                  }}
                   className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-4 px-8 rounded-2xl transition-all duration-200 font-bold text-lg"
                 >
                   Cancel
