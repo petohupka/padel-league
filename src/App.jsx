@@ -245,18 +245,23 @@ const PadelCourtBG = () => (
       left: 0,
       right: 0,
       bottom: 0,
-      zIndex: -1,
-      background: `
-        linear-gradient(45deg, #ff6b6b 25%, transparent 25%), 
-        linear-gradient(-45deg, #4ecdc4 25%, transparent 25%), 
-        linear-gradient(45deg, transparent 75%, #ff6b6b 75%), 
-        linear-gradient(-45deg, transparent 75%, #4ecdc4 75%)
-      `,
-      backgroundSize: '60px 60px',
-      backgroundPosition: '0 0, 0 30px, 30px -30px, -30px 0px',
-      opacity: 0.3
+      zIndex: 999999,
+      backgroundColor: 'rgba(255, 0, 0, 0.5)',
+      pointerEvents: 'none'
     }}
-  />
+  >
+    <div style={{
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      fontSize: '48px',
+      color: 'white',
+      fontWeight: 'bold'
+    }}>
+      BACKGROUND TEST
+    </div>
+  </div>
 );
 
   return (
