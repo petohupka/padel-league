@@ -345,7 +345,7 @@ const PadelCompetitionApp = () => {
             <div className="bg-gradient-to-r from-blue-600 to-emerald-600 p-4 rounded-2xl shadow-lg">
               <Trophy className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-6xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-emerald-700 bg-clip-text text-transparent" style={{ fontFamily: 'Bebas Neue, cursive' }}>
+            <h1 className="text-6xl font-bold text-blue-700" style={{ fontFamily: 'Bebas Neue, cursive' }}>
               MITON PADEL LEAGUE
             </h1>
           </div>
@@ -410,48 +410,57 @@ const PadelCompetitionApp = () => {
               </div>
             </div>
 
-            <div className="p-6 space-y-3 max-h-96 overflow-y-auto">
+            <div className="p-4 sm:p-6 space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
               {ranking.map((player, index) => (
-                <div key={player.id} className="group flex items-center justify-between p-5 bg-gradient-to-r from-white to-slate-50 rounded-2xl border border-slate-200/50 hover:shadow-lg transition-all duration-200">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-slate-100 rounded-full font-bold text-slate-700">
+                <div key={player.id} className="group flex items-center justify-between p-3 sm:p-5 bg-gradient-to-r from-white to-slate-50 rounded-2xl border border-slate-200/50 hover:shadow-lg transition-all duration-200">
+                  <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                    <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+                      <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 rounded-full font-bold text-slate-700 text-sm sm:text-base">
                         {index + 1}
                       </div>
-                      {getRankIcon(index)}
+                      <div className="hidden sm:block">
+                        {getRankIcon(index)}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-lg">{player.name}</h3>
-                      <p className="text-sm text-slate-600">
-                        <span className="font-semibold">{player.wins}W-{player.losses}L</span>
-                        <span className="mx-2 text-slate-400">•</span>
-                        <span>{getWinRate(player)}% wins</span>
-                        <span className="mx-2 text-slate-400">•</span>
-                        <span>{getGameWinRate(player)}% games</span>
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-800 text-base sm:text-lg truncate">{player.name}</h3>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                        <div className="text-xs sm:text-sm text-slate-600">
+                          <span className="font-semibold">{player.wins}W-{player.losses}L</span>
+                        </div>
+                        <div className="hidden sm:flex items-center text-xs sm:text-sm text-slate-600">
+                          <span className="mx-2 text-slate-400">•</span>
+                          <span>{getWinRate(player)}% wins</span>
+                          <span className="mx-2 text-slate-400">•</span>
+                          <span>{getGameWinRate(player)}% games</span>
+                        </div>
+                        <div className="flex sm:hidden text-xs text-slate-500">
+                          <span>{getWinRate(player)}% win rate</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-slate-800">{player.points}</div>
-                    <div className="text-sm text-slate-500">{player.matches} matches</div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-xl sm:text-2xl font-bold text-slate-800">{player.points}</div>
+                    <div className="text-xs sm:text-sm text-slate-500">{player.matches} matches</div>
                   </div>
                 </div>
               ))}
               
               {players.filter(p => p.matches === 0).map(player => (
-                <div key={player.id} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-200/30 opacity-60">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-10 h-10 bg-slate-200 rounded-full text-sm text-slate-500">
+                <div key={player.id} className="flex items-center justify-between p-3 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200/30 opacity-60">
+                  <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                    <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-slate-200 rounded-full text-xs sm:text-sm text-slate-500">
                       —
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-700">{player.name}</h3>
-                      <p className="text-sm text-slate-500">No matches played</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-slate-700 truncate">{player.name}</h3>
+                      <p className="text-xs sm:text-sm text-slate-500">No matches played</p>
                     </div>
                   </div>
                   <button
                     onClick={() => removePlayer(player.id)}
-                    className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-all duration-200"
+                    className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-all duration-200 flex-shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
