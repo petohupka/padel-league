@@ -1,4 +1,44 @@
-import React, { useState, useEffect } from 'react';
+// Delete match from Firebase
+  const deleteMatch = async (matchId) => {
+    const matchToDelete = matches.find(m => m.id === matchId);
+    if (!matchToDelete) return;
+
+    try {
+      // CRITICAL: Calculate all stat reversals BEFORE any Firebase updates
+      const [score1, score2] = matchToDelete.score.split('-').map(Number);
+      const team1Won = score1 > score2;
+      const scoreDifference = Math.abs(score1 - score2);
+
+      // Get current player ratings (before any updates) 
+      const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
+      const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
+      const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
+      const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
+
+      // Pre-calculate all stat reversals using CURRENT ratings
+      const playerUpdates = players.map(player => {
+        const isInTeam1 = matchToDelete.team1.includes(player.name);
+        const isInTeam2 = matchToDelete.team2.includes(player.name);
+
+        if (isInTeam1 || isInTeam2) {
+          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
+          
+          // Calculate the same changes that were originally applied
+          const baseChange = calculateRatingChange(
+            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
+            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
+          );
+
+          const marginMultiplier = 1 + (scoreDifference * 0.10);
+          const finalChange = Math.round(baseChange * marginMultiplier);
+
+          return {
+            playerId: player.id,
+            reversedStats: {
+              matches: player.matches - 1,
+              wins: player.wins - (playerWon ? 1 : 0),
+              losses: player.losses - (playerWon ? 0 : 1),
+              gamesWon: player.gamesWon - (isInTeam1 ? score1import React, { useState, useEffect } from 'react';
 import { Trophy, Users, Plus, X, Medal, Star, Calendar, Target } from 'lucide-react';
 import { db } from './firebase';
 import { 
@@ -90,6 +130,15 @@ const PadelCompetitionApp = () => {
 
   // Remove player from Firebase
   const removePlayer = async (playerId) => {
+    // Only allow deletion of players with no matches
+    const playerToDelete = players.find(p => p.id === playerId);
+    if (!playerToDelete) return;
+    
+    if (playerToDelete.matches > 0) {
+      alert("Cannot delete players who have played matches!");
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'players', playerId));
     } catch (error) {
