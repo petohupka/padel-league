@@ -237,37 +237,39 @@ const PadelCompetitionApp = () => {
   const ranking = getRanking();
 
   // Padel Court Background Component
-  const PadelCourtBG = () => (
+const PadelCourtBG = () => (
+  <div className="fixed inset-0 -z-10">
     <svg 
-      className="fixed inset-0 w-full h-full opacity-5 -z-10" 
+      className="absolute inset-0 w-full h-full opacity-15" 
       viewBox="0 0 400 200" 
       fill="none"
     >
       {/* Court outline */}
-      <rect x="50" y="40" width="300" height="120" stroke="currentColor" strokeWidth="2" fill="none"/>
+      <rect x="50" y="40" width="300" height="120" stroke="currentColor" strokeWidth="3" fill="none"/>
       
       {/* Net line */}
-      <line x1="200" y1="40" x2="200" y2="160" stroke="currentColor" strokeWidth="3"/>
+      <line x1="200" y1="40" x2="200" y2="160" stroke="currentColor" strokeWidth="4"/>
       
       {/* Service boxes */}
-      <line x1="50" y1="85" x2="350" y2="85" stroke="currentColor" strokeWidth="1"/>
-      <line x1="50" y1="115" x2="350" y2="115" stroke="currentColor" strokeWidth="1"/>
+      <line x1="50" y1="85" x2="350" y2="85" stroke="currentColor" strokeWidth="2"/>
+      <line x1="50" y1="115" x2="350" y2="115" stroke="currentColor" strokeWidth="2"/>
       
       {/* Side service lines */}
-      <line x1="125" y1="40" x2="125" y2="160" stroke="currentColor" strokeWidth="1"/>
-      <line x1="275" y1="40" x2="275" y2="160" stroke="currentColor" strokeWidth="1"/>
+      <line x1="125" y1="40" x2="125" y2="160" stroke="currentColor" strokeWidth="2"/>
+      <line x1="275" y1="40" x2="275" y2="160" stroke="currentColor" strokeWidth="2"/>
       
       {/* Glass walls (padel specific) */}
-      <rect x="45" y="35" width="5" height="130" fill="currentColor" opacity="0.3"/>
-      <rect x="350" y="35" width="5" height="130" fill="currentColor" opacity="0.3"/>
-      <rect x="50" y="35" width="300" height="5" fill="currentColor" opacity="0.3"/>
-      <rect x="50" y="160" width="300" height="5" fill="currentColor" opacity="0.3"/>
+      <rect x="45" y="35" width="8" height="130" fill="currentColor" opacity="0.4"/>
+      <rect x="347" y="35" width="8" height="130" fill="currentColor" opacity="0.4"/>
+      <rect x="50" y="35" width="300" height="8" fill="currentColor" opacity="0.4"/>
+      <rect x="50" y="157" width="300" height="8" fill="currentColor" opacity="0.4"/>
     </svg>
-  );
+  </div>
+);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 text-slate-800">
-      <PadelCourtBG />
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 text-slate-800">
+    <PadelCourtBG />
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
         {/* Modern Header */}
