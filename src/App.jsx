@@ -40,12 +40,61 @@ const PadelCompetitionApp = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  // Simulate Firebase loading
+  // Load players and tournaments
   useEffect(() => {
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const unsubscribePlayers = onSnapshot(
+      collection(db, 'players'), 
+      (snapshot) => {
+        const playersData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setPlayers(playersData);
+        setLoading(false);
+      }
+    );
+
+    const unsubscribeTournaments = onSnapshot(
+      query(collection(db, 'tournaments'), orderBy('createdAt', 'desc')), 
+      (snapshot) => {
+        const tournamentsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setTournaments(tournamentsData);
+      }
+    );
+
+    return () => {
+      unsubscribePlayers();
+      unsubscribeTournaments();
+    };
   }, []);
+
+  // Load games for current tournament
+  useEffect(() => {
+    if (!currentTournament) {
+      setGames([]);
+      return;
+    }
+
+    const unsubscribeGames = onSnapshot(
+      query(
+        collection(db, 'games'), 
+        where('tournamentId', '==', currentTournament.id),
+        orderBy('createdAt', 'desc')
+      ), 
+      (snapshot) => {
+        const gamesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setGames(gamesData);
+      }
+    );
+
+    return () => unsubscribeGames();
+  }, [currentTournament]);
 
   const generateTournamentName = () => {
     const themes = [
@@ -60,15 +109,14 @@ const PadelCompetitionApp = () => {
   const addPlayer = async () => {
     if (newPlayerName.trim()) {
       try {
-        const newPlayer = {
-          id: Date.now().toString(),
+        await addDoc(collection(db, 'players'), {
           name: newPlayerName.trim(),
           createdAt: new Date()
-        };
-        setPlayers([...players, newPlayer]);
+        });
         setNewPlayerName('');
         setShowAddPlayer(false);
       } catch (error) {
+        console.error("Error adding player:", error);
         alert("Failed to add player. Please try again.");
       }
     }
@@ -77,19 +125,25 @@ const PadelCompetitionApp = () => {
   const addTournament = async () => {
     if (newTournamentName.trim()) {
       try {
-        const newTournament = {
-          id: Date.now().toString(),
+        const docRef = await addDoc(collection(db, 'tournaments'), {
           name: newTournamentName.trim(),
           createdAt: new Date(),
-          isActive: true,
-          winner: null
-        };
-        setTournaments([newTournament, ...tournaments]);
+          isActive: true
+        });
         setNewTournamentName('');
         setShowAddTournament(false);
+        
+        // Auto-select the new tournament
+        const newTournament = {
+          id: docRef.id,
+          name: newTournamentName.trim(),
+          createdAt: new Date(),
+          isActive: true
+        };
         setCurrentTournament(newTournament);
         setCurrentPage('tournament');
       } catch (error) {
+        console.error("Error adding tournament:", error);
         alert("Failed to add tournament. Please try again.");
       }
     }
@@ -118,8 +172,7 @@ const PadelCompetitionApp = () => {
     }
 
     try {
-      const newGame = {
-        id: Date.now().toString(),
+      await addDoc(collection(db, 'games'), {
         tournamentId: currentTournament.id,
         team1: [team1Player1, team1Player2],
         team2: [team2Player1, team2Player2],
@@ -128,9 +181,8 @@ const PadelCompetitionApp = () => {
         winner: score1 > score2 ? 'team1' : 'team2',
         date,
         createdAt: new Date()
-      };
+      });
 
-      setGames([newGame, ...games]);
       setGameForm({
         team1Player1: '',
         team1Player2: '',
@@ -142,6 +194,7 @@ const PadelCompetitionApp = () => {
       });
       setShowAddGame(false);
     } catch (error) {
+      console.error("Error adding game:", error);
       alert("Failed to add game. Please try again.");
     }
   };
@@ -152,8 +205,9 @@ const PadelCompetitionApp = () => {
     }
     
     try {
-      setGames(games.filter(game => game.id !== gameId));
+      await deleteDoc(doc(db, 'games', gameId));
     } catch (error) {
+      console.error("Error deleting game:", error);
       alert("Failed to delete game. Please try again.");
     }
   };
@@ -164,17 +218,16 @@ const PadelCompetitionApp = () => {
     }
 
     try {
-      const updatedTournament = {
-        ...currentTournament,
+      await updateDoc(doc(db, 'tournaments', currentTournament.id), {
         winner: playerName,
-        isActive: false
-      };
+        isActive: false,
+        completedAt: new Date()
+      });
       
-      setTournaments(tournaments.map(t => 
-        t.id === currentTournament.id ? updatedTournament : t
-      ));
-      setCurrentTournament(updatedTournament);
+      // Refresh current tournament
+      setCurrentTournament({...currentTournament, winner: playerName, isActive: false});
     } catch (error) {
+      console.error("Error marking winner:", error);
       alert("Failed to mark winner. Please try again.");
     }
   };
@@ -475,10 +528,10 @@ const PadelCompetitionApp = () => {
           <h3 className="text-2xl font-bold text-amber-800 mb-3">Firebase Integration</h3>
           <p className="text-amber-700 max-w-2xl mx-auto">
             This app uses Firebase for real-time data storage. All players, tournaments, and games are saved to the cloud. 
-            The demo version shows the interface - connect your Firebase project to enable full functionality.
+            Rankings are calculated fresh from actual game data - no more stuck ratings or unfair baselines!
           </p>
           <div className="mt-4 text-sm text-amber-600">
-            <p>To connect Firebase: Replace the mock functions with actual Firebase imports in your code</p>
+            <p>Your old ELO rating issues are completely solved with this simple scoring system.</p>
           </div>
         </div>
       </NeumorphismCard>
@@ -567,7 +620,7 @@ const PadelCompetitionApp = () => {
                 )}
                 
                 <p className="text-sm text-slate-600">
-                  Created {tournament.createdAt?.toLocaleDateString?.() || 'Recently'}
+                  Created {tournament.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'}
                 </p>
               </div>
             </NeumorphismCard>
@@ -669,3 +722,368 @@ const PadelCompetitionApp = () => {
                       )}
                     </div>
                   </div>
+                </div>
+              ))}
+              
+              {rankings.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                  <Target className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg">No games played yet</p>
+                </div>
+              )}
+            </div>
+          </NeumorphismCard>
+
+          {/* Games */}
+          <NeumorphismCard>
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <Calendar className="w-7 h-7 text-emerald-500" />
+                Game History
+              </h3>
+            </div>
+
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {tournamentGames.map(game => (
+                <div key={game.id} className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 shadow-inner">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm text-slate-500 font-medium">{game.date}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-gradient-to-br from-slate-200 to-slate-300 px-4 py-2 rounded-xl shadow-inner">
+                        <span className="text-xl font-bold text-slate-800">
+                          {game.team1Score}-{game.team2Score}
+                        </span>
+                      </div>
+                      {currentTournament?.isActive && (
+                        <NeumorphismButton
+                          onClick={() => deleteGame(game.id)}
+                          variant="danger"
+                          className="p-2 rounded-xl"
+                        >
+                          <X className="w-4 h-4" />
+                        </NeumorphismButton>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className={`p-4 rounded-xl ${
+                      game.winner === 'team1' 
+                        ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 shadow-inner' 
+                        : 'bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner'
+                    }`}>
+                      <div className="text-sm font-bold text-slate-800 mb-1">
+                        {game.team1[0]} & {game.team1[1]}
+                      </div>
+                      {game.winner === 'team1' && (
+                        <div className="text-xs text-emerald-700 font-bold bg-emerald-200 px-2 py-1 rounded-lg inline-block shadow-inner">
+                          WINNERS
+                        </div>
+                      )}
+                    </div>
+                    <div className={`p-4 rounded-xl ${
+                      game.winner === 'team2' 
+                        ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 shadow-inner' 
+                        : 'bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner'
+                    }`}>
+                      <div className="text-sm font-bold text-slate-800 mb-1">
+                        {game.team2[0]} & {game.team2[1]}
+                      </div>
+                      {game.winner === 'team2' && (
+                        <div className="text-xs text-emerald-700 font-bold bg-emerald-200 px-2 py-1 rounded-lg inline-block shadow-inner">
+                          WINNERS
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {tournamentGames.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                  <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg">No games in this tournament yet</p>
+                </div>
+              )}
+            </div>
+          </NeumorphismCard>
+        </div>
+      </div>
+    );
+  };
+
+  // League Rankings Page (placeholder)
+  const LeagueRankingsPage = () => (
+    <div className="text-center py-16">
+      <NeumorphismCard className="max-w-2xl mx-auto">
+        <Crown className="w-20 h-20 mx-auto mb-6 text-slate-400" />
+        <h3 className="text-2xl font-semibold text-slate-600 mb-3">League Rankings</h3>
+        <p className="text-slate-500 text-lg mb-6">Overall player stats across all tournaments</p>
+        <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-2xl p-6 shadow-inner">
+          <p className="text-slate-700">Coming soon! This will show cumulative rankings across all your tournaments.</p>
+        </div>
+      </NeumorphismCard>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 flex items-center justify-center">
+        <NeumorphismCard className="text-center p-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-400 to-emerald-400 rounded-full flex items-center justify-center animate-pulse shadow-inner">
+            <Trophy className="w-8 h-8 text-white" />
+          </div>
+          <p className="text-slate-600 text-lg font-medium">Loading Padel League...</p>
+        </NeumorphismCard>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 text-slate-800">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <NeumorphismCard className="inline-block p-8">
+            <div className="flex items-center justify-center gap-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-emerald-400 rounded-full flex items-center justify-center shadow-inner">
+                <Trophy className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-5xl font-bold text-slate-800" style={{ fontFamily: 'Bebas Neue, cursive' }}>
+                PADEL LEAGUE
+              </h1>
+            </div>
+            <p className="text-slate-600 text-lg mt-4">Tournament management & player rankings</p>
+          </NeumorphismCard>
+        </div>
+
+        <Navigation />
+
+        {/* Page Content */}
+        {currentPage === 'tournaments' && <TournamentsPage />}
+        {currentPage === 'tournament' && currentTournament && <TournamentPage />}
+        {currentPage === 'rankings' && <LeagueRankingsPage />}
+        {currentPage === 'how-it-works' && <HowItWorksPage />}
+
+        {/* Modals */}
+        {showAddPlayer && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <NeumorphismCard className="w-full max-w-md">
+              <h3 className="text-2xl font-bold mb-6 text-slate-800">Add New Player</h3>
+              <input
+                type="text"
+                placeholder="Player name"
+                value={newPlayerName}
+                onChange={(e) => setNewPlayerName(e.target.value)}
+                className="w-full p-4 border-2 border-slate-300 rounded-2xl mb-6 focus:border-blue-400 outline-none shadow-inner bg-gradient-to-r from-slate-50 to-slate-100"
+                onKeyPress={(e) => e.key === 'Enter' && addPlayer()}
+              />
+              <div className="flex gap-4">
+                <NeumorphismButton
+                  onClick={addPlayer}
+                  disabled={!newPlayerName.trim()}
+                  variant="primary"
+                  className="flex-1 py-3 rounded-2xl"
+                >
+                  Add Player
+                </NeumorphismButton>
+                <NeumorphismButton
+                  onClick={() => {
+                    setShowAddPlayer(false);
+                    setNewPlayerName('');
+                  }}
+                  variant="neutral"
+                  className="flex-1 py-3 rounded-2xl"
+                >
+                  Cancel
+                </NeumorphismButton>
+              </div>
+            </NeumorphismCard>
+          </div>
+        )}
+
+        {showAddTournament && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <NeumorphismCard className="w-full max-w-md">
+              <h3 className="text-2xl font-bold mb-6 text-slate-800">Create New Tournament</h3>
+              <input
+                type="text"
+                placeholder="Tournament name"
+                value={newTournamentName}
+                onChange={(e) => setNewTournamentName(e.target.value)}
+                className="w-full p-4 border-2 border-slate-300 rounded-2xl mb-6 focus:border-emerald-400 outline-none shadow-inner bg-gradient-to-r from-slate-50 to-slate-100"
+                onKeyPress={(e) => e.key === 'Enter' && addTournament()}
+              />
+              <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-2xl p-4 mb-6 shadow-inner">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-blue-800">Quick Tip</span>
+                </div>
+                <p className="text-xs text-blue-700">
+                  Great tournament names: "Tuesday Clash #3", "Rally Cup #1", "Court Kings #2"
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <NeumorphismButton
+                  onClick={addTournament}
+                  disabled={!newTournamentName.trim()}
+                  variant="secondary"
+                  className="flex-1 py-3 rounded-2xl"
+                >
+                  Create Tournament
+                </NeumorphismButton>
+                <NeumorphismButton
+                  onClick={() => {
+                    setShowAddTournament(false);
+                    setNewTournamentName('');
+                  }}
+                  variant="neutral"
+                  className="flex-1 py-3 rounded-2xl"
+                >
+                  Cancel
+                </NeumorphismButton>
+              </div>
+            </NeumorphismCard>
+          </div>
+        )}
+
+        {showAddGame && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <NeumorphismCard className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold mb-6 text-slate-800">Add New Game</h3>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
+                  <input
+                    type="date"
+                    value={gameForm.date}
+                    onChange={(e) => setGameForm({...gameForm, date: e.target.value})}
+                    className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:border-emerald-400 outline-none shadow-inner bg-gradient-to-r from-slate-50 to-slate-100"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <NeumorphismCard className="bg-gradient-to-br from-blue-50 to-blue-100">
+                    <label className="block text-sm font-bold text-blue-800 mb-3">Team 1</label>
+                    <select
+                      value={gameForm.team1Player1}
+                      onChange={(e) => setGameForm({...gameForm, team1Player1: e.target.value})}
+                      className="w-full p-3 border-2 border-blue-300 rounded-xl mb-3 focus:border-blue-500 outline-none shadow-inner bg-white"
+                    >
+                      <option value="">Select Player 1</option>
+                      {players.map(player => (
+                        <option key={player.id} value={player.name}>{player.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={gameForm.team1Player2}
+                      onChange={(e) => setGameForm({...gameForm, team1Player2: e.target.value})}
+                      className="w-full p-3 border-2 border-blue-300 rounded-xl focus:border-blue-500 outline-none shadow-inner bg-white"
+                    >
+                      <option value="">Select Player 2</option>
+                      {players.map(player => (
+                        <option key={player.id} value={player.name}>{player.name}</option>
+                      ))}
+                    </select>
+                  </NeumorphismCard>
+
+                  <NeumorphismCard className="bg-gradient-to-br from-emerald-50 to-emerald-100">
+                    <label className="block text-sm font-bold text-emerald-800 mb-3">Team 2</label>
+                    <select
+                      value={gameForm.team2Player1}
+                      onChange={(e) => setGameForm({...gameForm, team2Player1: e.target.value})}
+                      className="w-full p-3 border-2 border-emerald-300 rounded-xl mb-3 focus:border-emerald-500 outline-none shadow-inner bg-white"
+                    >
+                      <option value="">Select Player 1</option>
+                      {players.map(player => (
+                        <option key={player.id} value={player.name}>{player.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={gameForm.team2Player2}
+                      onChange={(e) => setGameForm({...gameForm, team2Player2: e.target.value})}
+                      className="w-full p-3 border-2 border-emerald-300 rounded-xl focus:border-emerald-500 outline-none shadow-inner bg-white"
+                    >
+                      <option value="">Select Player 2</option>
+                      {players.map(player => (
+                        <option key={player.id} value={player.name}>{player.name}</option>
+                      ))}
+                    </select>
+                  </NeumorphismCard>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Team 1 Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={gameForm.team1Score}
+                      onChange={(e) => setGameForm({...gameForm, team1Score: e.target.value})}
+                      className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:border-blue-400 outline-none text-center text-2xl font-bold shadow-inner bg-gradient-to-r from-slate-50 to-slate-100"
+                      placeholder="4"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Team 2 Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={gameForm.team2Score}
+                      onChange={(e) => setGameForm({...gameForm, team2Score: e.target.value})}
+                      className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:border-emerald-400 outline-none text-center text-2xl font-bold shadow-inner bg-gradient-to-r from-slate-50 to-slate-100"
+                      placeholder="2"
+                    />
+                  </div>
+                </div>
+
+                <NeumorphismCard className="bg-gradient-to-r from-blue-50 to-emerald-50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="w-5 h-5 text-slate-600" />
+                    <span className="font-bold text-slate-800">Simple Scoring</span>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    <strong>Points = Games Scored + Win Bonus (2pts)</strong><br/>
+                    Tournament winner gets <strong className="text-emerald-700">+5 bonus points</strong>
+                  </p>
+                </NeumorphismCard>
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <NeumorphismButton
+                  onClick={addGame}
+                  variant="secondary"
+                  className="flex-1 py-4 rounded-2xl text-lg"
+                >
+                  Add Game
+                </NeumorphismButton>
+                <NeumorphismButton
+                  onClick={() => {
+                    setShowAddGame(false);
+                    setGameForm({
+                      team1Player1: '',
+                      team1Player2: '',
+                      team2Player1: '',
+                      team2Player2: '',
+                      team1Score: '',
+                      team2Score: '',
+                      date: new Date().toISOString().split('T')[0]
+                    });
+                  }}
+                  variant="neutral"
+                  className="flex-1 py-4 rounded-2xl text-lg"
+                >
+                  Cancel
+                </NeumorphismButton>
+              </div>
+            </NeumorphismCard>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PadelCompetitionApp;
