@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Plus, X, Medal, Star, Calendar, Target } from 'lucide-react';
+import { Trophy, Users, Plus, X, Medal, Star, Calendar, Target, Home, Crown, ArrowLeft, Zap, Play, Info, HelpCircle } from 'lucide-react';
+
+// Real Firebase imports
 import { db } from './firebase';
 import { 
   collection, 
@@ -9,18 +11,26 @@ import {
   doc, 
   updateDoc, 
   query, 
-  orderBy 
+  orderBy,
+  where 
 } from 'firebase/firestore';
 
 const PadelCompetitionApp = () => {
+  const [currentPage, setCurrentPage] = useState('tournaments');
   const [players, setPlayers] = useState([]);
-  const [matches, setMatches] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
+  const [currentTournament, setCurrentTournament] = useState(null);
+  const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddPlayer, setShowAddPlayer] = useState(false);
-  const [showAddMatch, setShowAddMatch] = useState(false);
-  const [newPlayerName, setNewPlayerName] = useState('');
   
-  const [matchForm, setMatchForm] = useState({
+  // Modal states
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [showAddTournament, setShowAddTournament] = useState(false);
+  const [showAddGame, setShowAddGame] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newTournamentName, setNewTournamentName] = useState('');
+  
+  const [gameForm, setGameForm] = useState({
     team1Player1: '',
     team1Player2: '',
     team2Player1: '',
@@ -30,90 +40,63 @@ const PadelCompetitionApp = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
+  // Simulate Firebase loading
   useEffect(() => {
-    const unsubscribePlayers = onSnapshot(
-      collection(db, 'players'), 
-      (snapshot) => {
-        const playersData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setPlayers(playersData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error loading players:", error);
-        setLoading(false);
-      }
-    );
-
-    const unsubscribeMatches = onSnapshot(
-      query(collection(db, 'matches'), orderBy('createdAt', 'desc')), 
-      (snapshot) => {
-        const matchesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setMatches(matchesData);
-      },
-      (error) => {
-        console.error("Error loading matches:", error);
-      }
-    );
-
-    return () => {
-      unsubscribePlayers();
-      unsubscribeMatches();
-    };
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
   }, []);
 
-  const calculateRatingChange = (winnerRating, loserRating) => {
-    const K = 40;
-    const expectedWin = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
-    return Math.round(K * (1 - expectedWin));
+  const generateTournamentName = () => {
+    const themes = [
+      'Tuesday Clash', 'Rally Cup', 'Court Kings', 'Padel Showdown', 
+      'Smash Series', 'Net Masters', 'Volley Wars', 'Ace League'
+    ];
+    const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+    const number = tournaments.length + 1;
+    return `${randomTheme} #${number}`;
   };
 
   const addPlayer = async () => {
     if (newPlayerName.trim()) {
       try {
-        await addDoc(collection(db, 'players'), {
+        const newPlayer = {
+          id: Date.now().toString(),
           name: newPlayerName.trim(),
-          matches: 0,
-          wins: 0,
-          losses: 0,
-          gamesWon: 0,
-          gamesLost: 0,
-          points: 1000,
           createdAt: new Date()
-        });
+        };
+        setPlayers([...players, newPlayer]);
         setNewPlayerName('');
         setShowAddPlayer(false);
       } catch (error) {
-        console.error("Error adding player:", error);
         alert("Failed to add player. Please try again.");
       }
     }
   };
 
-  const removePlayer = async (playerId) => {
-    const playerToDelete = players.find(p => p.id === playerId);
-    if (!playerToDelete) return;
-    
-    if (playerToDelete.matches > 0) {
-      alert("Cannot delete players who have played matches!");
-      return;
-    }
-
-    try {
-      await deleteDoc(doc(db, 'players', playerId));
-    } catch (error) {
-      console.error("Error removing player:", error);
-      alert("Failed to remove player. Please try again.");
+  const addTournament = async () => {
+    if (newTournamentName.trim()) {
+      try {
+        const newTournament = {
+          id: Date.now().toString(),
+          name: newTournamentName.trim(),
+          createdAt: new Date(),
+          isActive: true,
+          winner: null
+        };
+        setTournaments([newTournament, ...tournaments]);
+        setNewTournamentName('');
+        setShowAddTournament(false);
+        setCurrentTournament(newTournament);
+        setCurrentPage('tournament');
+      } catch (error) {
+        alert("Failed to add tournament. Please try again.");
+      }
     }
   };
 
-  const addMatch = async () => {
-    const { team1Player1, team1Player2, team2Player1, team2Player2, team1Score, team2Score, date } = matchForm;
+  const addGame = async () => {
+    const { team1Player1, team1Player2, team2Player1, team2Player2, team1Score, team2Score, date } = gameForm;
     
     if (!team1Player1 || !team1Player2 || !team2Player1 || !team2Player2 || !team1Score || !team2Score) {
       alert('Please fill all fields!');
@@ -130,72 +113,25 @@ const PadelCompetitionApp = () => {
     const score2 = parseInt(team2Score);
 
     if (score1 === score2) {
-      alert('Matches cannot end in a tie!');
+      alert('Games cannot end in a tie!');
       return;
     }
-
-    if (Math.max(score1, score2) < 4) {
-      alert('Winner must score at least 4 games!');
-      return;
-    }
-
-    const team1Won = score1 > score2;
-    const scoreDifference = Math.abs(score1 - score2);
 
     try {
-      const team1Players = players.filter(p => [team1Player1, team1Player2].includes(p.name));
-      const team2Players = players.filter(p => [team2Player1, team2Player2].includes(p.name));
-      const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
-      const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
-
-      const playerUpdates = players.map(player => {
-        const isInTeam1 = [team1Player1, team1Player2].includes(player.name);
-        const isInTeam2 = [team2Player1, team2Player2].includes(player.name);
-
-        if (isInTeam1 || isInTeam2) {
-          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
-          
-          const baseChange = calculateRatingChange(
-            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
-            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
-          );
-
-          const marginMultiplier = 1 + (scoreDifference * 0.10);
-          const finalChange = Math.round(baseChange * marginMultiplier);
-
-          return {
-            playerId: player.id,
-            updatedStats: {
-              matches: player.matches + 1,
-              wins: player.wins + (playerWon ? 1 : 0),
-              losses: player.losses + (playerWon ? 0 : 1),
-              gamesWon: player.gamesWon + (isInTeam1 ? score1 : score2),
-              gamesLost: player.gamesLost + (isInTeam1 ? score2 : score1),
-              points: player.points + (playerWon ? finalChange : -finalChange)
-            }
-          };
-        }
-        return null;
-      }).filter(Boolean);
-
-      const matchData = {
+      const newGame = {
+        id: Date.now().toString(),
+        tournamentId: currentTournament.id,
         team1: [team1Player1, team1Player2],
         team2: [team2Player1, team2Player2],
-        score: `${score1}-${score2}`,
-        winner: team1Won ? 'team1' : 'team2',
+        team1Score: score1,
+        team2Score: score2,
+        winner: score1 > score2 ? 'team1' : 'team2',
         date,
         createdAt: new Date()
       };
 
-      await addDoc(collection(db, 'matches'), matchData);
-
-      const updatePromises = playerUpdates.map(update => 
-        updateDoc(doc(db, 'players', update.playerId), update.updatedStats)
-      );
-
-      await Promise.all(updatePromises);
-
-      setMatchForm({
+      setGames([newGame, ...games]);
+      setGameForm({
         team1Player1: '',
         team1Player2: '',
         team2Player1: '',
@@ -204,93 +140,113 @@ const PadelCompetitionApp = () => {
         team2Score: '',
         date: new Date().toISOString().split('T')[0]
       });
-      setShowAddMatch(false);
+      setShowAddGame(false);
     } catch (error) {
-      console.error("Error adding match:", error);
-      alert("Failed to add match. Please try again.");
+      alert("Failed to add game. Please try again.");
     }
   };
 
-  const deleteMatch = async (matchId) => {
-    const matchToDelete = matches.find(m => m.id === matchId);
-    if (!matchToDelete) return;
+  const deleteGame = async (gameId) => {
+    if (!confirm('Are you sure you want to delete this game?')) {
+      return;
+    }
+    
+    try {
+      setGames(games.filter(game => game.id !== gameId));
+    } catch (error) {
+      alert("Failed to delete game. Please try again.");
+    }
+  };
 
-    if (!confirm('Are you sure you want to delete this match? This will reverse all player stats.')) {
+  const markTournamentWinner = async (playerName) => {
+    if (!confirm(`Mark ${playerName} as tournament winner?`)) {
       return;
     }
 
     try {
-      const [score1, score2] = matchToDelete.score.split('-').map(Number);
-      const team1Won = score1 > score2;
-      const scoreDifference = Math.abs(score1 - score2);
-
-      const team1Players = players.filter(p => matchToDelete.team1.includes(p.name));
-      const team2Players = players.filter(p => matchToDelete.team2.includes(p.name));
+      const updatedTournament = {
+        ...currentTournament,
+        winner: playerName,
+        isActive: false
+      };
       
-      if (team1Players.length < 2 || team2Players.length < 2) {
-        alert('Cannot delete match: Some players may have been deleted.');
-        return;
-      }
-
-      const team1Avg = team1Players.reduce((sum, p) => sum + p.points, 0) / team1Players.length;
-      const team2Avg = team2Players.reduce((sum, p) => sum + p.points, 0) / team2Players.length;
-
-      const playerUpdates = players.map(player => {
-        const isInTeam1 = matchToDelete.team1.includes(player.name);
-        const isInTeam2 = matchToDelete.team2.includes(player.name);
-
-        if (isInTeam1 || isInTeam2) {
-          const playerWon = (isInTeam1 && team1Won) || (isInTeam2 && !team1Won);
-          
-          const baseChange = calculateRatingChange(
-            playerWon ? (isInTeam1 ? team1Avg : team2Avg) : (isInTeam1 ? team1Avg : team2Avg),
-            playerWon ? (isInTeam1 ? team2Avg : team1Avg) : (isInTeam1 ? team2Avg : team1Avg)
-          );
-
-          const marginMultiplier = 1 + (scoreDifference * 0.10);
-          const finalChange = Math.round(baseChange * marginMultiplier);
-
-          return {
-            playerId: player.id,
-            reversedStats: {
-              matches: Math.max(0, player.matches - 1),
-              wins: Math.max(0, player.wins - (playerWon ? 1 : 0)),
-              losses: Math.max(0, player.losses - (playerWon ? 0 : 1)),
-              gamesWon: Math.max(0, player.gamesWon - (isInTeam1 ? score1 : score2)),
-              gamesLost: Math.max(0, player.gamesLost - (isInTeam1 ? score2 : score1)),
-              points: player.points - (playerWon ? finalChange : -finalChange)
-            }
-          };
-        }
-        return null;
-      }).filter(Boolean);
-
-      const updatePromises = playerUpdates.map(update => 
-        updateDoc(doc(db, 'players', update.playerId), update.reversedStats)
-      );
-
-      await Promise.all(updatePromises);
-      await deleteDoc(doc(db, 'matches', matchId));
+      setTournaments(tournaments.map(t => 
+        t.id === currentTournament.id ? updatedTournament : t
+      ));
+      setCurrentTournament(updatedTournament);
     } catch (error) {
-      console.error("Error deleting match:", error);
-      alert("Failed to delete match. Please try again.");
+      alert("Failed to mark winner. Please try again.");
     }
   };
 
-  const getRanking = () => {
-    return [...players]
-      .filter(p => p.matches > 0)
-      .sort((a, b) => b.points - a.points);
+  // Calculate tournament rankings using the simple system
+  const getTournamentRankings = () => {
+    if (!currentTournament) return [];
+    
+    const tournamentGames = games.filter(g => g.tournamentId === currentTournament.id);
+    if (!tournamentGames.length) return [];
+
+    const playerStats = {};
+    
+    // Initialize all players who participated
+    tournamentGames.forEach(game => {
+      [...game.team1, ...game.team2].forEach(playerName => {
+        if (!playerStats[playerName]) {
+          playerStats[playerName] = {
+            name: playerName,
+            totalPoints: 0,
+            gamesPlayed: 0,
+            gamesWon: 0,
+            totalScored: 0
+          };
+        }
+      });
+    });
+
+    // Calculate points for each game
+    tournamentGames.forEach(game => {
+      const { team1, team2, team1Score, team2Score, winner } = game;
+      
+      // Team 1 players
+      team1.forEach(playerName => {
+        const stats = playerStats[playerName];
+        stats.gamesPlayed += 1;
+        stats.totalScored += team1Score;
+        stats.totalPoints += team1Score; // Points scored
+        
+        if (winner === 'team1') {
+          stats.gamesWon += 1;
+          stats.totalPoints += 2; // Win bonus
+        }
+      });
+
+      // Team 2 players  
+      team2.forEach(playerName => {
+        const stats = playerStats[playerName];
+        stats.gamesPlayed += 1;
+        stats.totalScored += team2Score;
+        stats.totalPoints += team2Score; // Points scored
+        
+        if (winner === 'team2') {
+          stats.gamesWon += 1;
+          stats.totalPoints += 2; // Win bonus
+        }
+      });
+    });
+
+    // Add tournament winner bonus
+    if (currentTournament?.winner) {
+      if (playerStats[currentTournament.winner]) {
+        playerStats[currentTournament.winner].totalPoints += 5;
+      }
+    }
+
+    return Object.values(playerStats)
+      .filter(p => p.gamesPlayed > 0)
+      .sort((a, b) => b.totalPoints - a.totalPoints);
   };
 
-  const getWinRate = (player) => {
-    return player.matches > 0 ? Math.round((player.wins / player.matches) * 100) : 0;
-  };
-
-  const getGameWinRate = (player) => {
-    const total = player.gamesWon + player.gamesLost;
-    return total > 0 ? Math.round((player.gamesWon / total) * 100) : 0;
-  };
+  const rankings = getTournamentRankings();
 
   const getRankIcon = (index) => {
     if (index === 0) return <Trophy className="w-5 h-5 text-amber-500" />;
@@ -299,426 +255,417 @@ const PadelCompetitionApp = () => {
     return <Star className="w-5 h-5 text-blue-500" />;
   };
 
-  const ranking = getRanking();
+  // Neumorphism Button Component
+  const NeumorphismButton = ({ children, onClick, variant = 'primary', disabled = false, className = '' }) => {
+    const baseClasses = "relative overflow-hidden transition-all duration-300 font-semibold flex items-center justify-center gap-2";
+    
+    const variants = {
+      primary: `
+        bg-gradient-to-br from-blue-400 to-blue-600 text-white
+        shadow-[8px_8px_16px_#a1a1aa,_-8px_-8px_16px_#ffffff]
+        hover:shadow-[4px_4px_8px_#a1a1aa,_-4px_-4px_8px_#ffffff]
+        active:shadow-[inset_4px_4px_8px_#a1a1aa,_inset_-4px_-4px_8px_#ffffff]
+      `,
+      secondary: `
+        bg-gradient-to-br from-emerald-400 to-emerald-600 text-white
+        shadow-[8px_8px_16px_#a1a1aa,_-8px_-8px_16px_#ffffff]
+        hover:shadow-[4px_4px_8px_#a1a1aa,_-4px_-4px_8px_#ffffff]
+        active:shadow-[inset_4px_4px_8px_#a1a1aa,_inset_-4px_-4px_8px_#ffffff]
+      `,
+      neutral: `
+        bg-gradient-to-br from-slate-200 to-slate-300 text-slate-700
+        shadow-[8px_8px_16px_#a1a1aa,_-8px_-8px_16px_#ffffff]
+        hover:shadow-[4px_4px_8px_#a1a1aa,_-4px_-4px_8px_#ffffff]
+        active:shadow-[inset_4px_4px_8px_#a1a1aa,_inset_-4px_-4px_8px_#ffffff]
+      `,
+      danger: `
+        bg-gradient-to-br from-red-400 to-red-600 text-white
+        shadow-[8px_8px_16px_#a1a1aa,_-8px_-8px_16px_#ffffff]
+        hover:shadow-[4px_4px_8px_#a1a1aa,_-4px_-4px_8px_#ffffff]
+        active:shadow-[inset_4px_4px_8px_#a1a1aa,_inset_-4px_-4px_8px_#ffffff]
+      `
+    };
 
-  const PadelCourtBackground = () => (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {/* Light white to royal blue gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white via-blue-100 to-blue-600" />
-      
-      {/* Random padel balls scattered around */}
-      <div className="absolute top-10 left-20 w-8 h-8 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-20 animate-pulse" />
-      <div className="absolute top-32 right-32 w-6 h-6 bg-gradient-to-br from-yellow-300 to-green-500 rounded-full opacity-25" />
-      <div className="absolute bottom-20 left-40 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-15" />
-      <div className="absolute top-1/2 left-10 w-5 h-5 bg-gradient-to-br from-yellow-500 to-green-300 rounded-full opacity-20" />
-      <div className="absolute bottom-40 right-20 w-8 h-8 bg-gradient-to-br from-yellow-300 to-green-400 rounded-full opacity-18 animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-20 right-1/4 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-15" />
-      <div className="absolute bottom-1/3 left-1/3 w-7 h-7 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-22" />
-      <div className="absolute top-3/4 right-40 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-20 animate-pulse" style={{ animationDelay: '2s' }} />
-      <div className="absolute top-40 left-1/2 w-6 h-6 bg-gradient-to-br from-yellow-400 to-green-500 rounded-full opacity-18" />
-      <div className="absolute bottom-16 right-1/3 w-8 h-8 bg-gradient-to-br from-yellow-500 to-green-400 rounded-full opacity-16" />
-      <div className="absolute top-1/4 right-16 w-5 h-5 bg-gradient-to-br from-yellow-300 to-green-300 rounded-full opacity-25" />
-      <div className="absolute bottom-60 left-16 w-7 h-7 bg-gradient-to-br from-yellow-400 to-green-400 rounded-full opacity-19 animate-pulse" style={{ animationDelay: '1.5s' }} />
+    const disabledClasses = disabled ? "opacity-50 cursor-not-allowed" : "";
+
+    return (
+      <button
+        onClick={disabled ? undefined : onClick}
+        className={`${baseClasses} ${variants[variant]} ${disabledClasses} ${className}`}
+        disabled={disabled}
+      >
+        {children}
+      </button>
+    );
+  };
+
+  // Neumorphism Card Component
+  const NeumorphismCard = ({ children, className = '', hover = false }) => {
+    const hoverClasses = hover ? "hover:shadow-[16px_16px_32px_#a1a1aa,_-16px_-16px_32px_#ffffff] hover:-translate-y-1" : "";
+    
+    return (
+      <div className={`
+        bg-gradient-to-br from-slate-100 to-slate-200
+        rounded-3xl p-6
+        shadow-[12px_12px_24px_#a1a1aa,_-12px_-12px_24px_#ffffff]
+        transition-all duration-300
+        ${hoverClasses}
+        ${className}
+      `}>
+        {children}
+      </div>
+    );
+  };
+
+  // Navigation Component
+  const Navigation = () => (
+    <NeumorphismCard className="mb-8">
+      <div className="flex gap-3 flex-wrap">
+        <NeumorphismButton
+          onClick={() => setCurrentPage('tournaments')}
+          variant={currentPage === 'tournaments' ? 'primary' : 'neutral'}
+          className="px-6 py-3 rounded-2xl"
+        >
+          <Home className="w-4 h-4" />
+          <span>Tournaments</span>
+        </NeumorphismButton>
+        
+        {currentTournament && (
+          <NeumorphismButton
+            onClick={() => setCurrentPage('tournament')}
+            variant={currentPage === 'tournament' ? 'secondary' : 'neutral'}
+            className="px-6 py-3 rounded-2xl"
+          >
+            <Target className="w-4 h-4" />
+            <span className="hidden sm:inline">{currentTournament.name}</span>
+            <span className="sm:hidden">Current</span>
+          </NeumorphismButton>
+        )}
+        
+        <NeumorphismButton
+          onClick={() => setCurrentPage('rankings')}
+          variant={currentPage === 'rankings' ? 'primary' : 'neutral'}
+          className="px-6 py-3 rounded-2xl"
+        >
+          <Crown className="w-4 h-4" />
+          <span>League</span>
+        </NeumorphismButton>
+
+        <NeumorphismButton
+          onClick={() => setCurrentPage('how-it-works')}
+          variant={currentPage === 'how-it-works' ? 'primary' : 'neutral'}
+          className="px-6 py-3 rounded-2xl"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span>How It Works</span>
+        </NeumorphismButton>
+      </div>
+    </NeumorphismCard>
+  );
+
+  // How It Works Page
+  const HowItWorksPage = () => (
+    <div className="space-y-8">
+      <div className="text-center mb-12">
+        <h2 className="text-4xl font-bold text-slate-800 mb-4">How It Works</h2>
+        <p className="text-xl text-slate-600">Simple, fair, and transparent scoring system</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <NeumorphismCard>
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-inner">
+              <Target className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800">Scoring Formula</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 shadow-inner">
+              <h4 className="font-bold text-slate-800 mb-2">Points = Games Scored + Win Bonus + Tournament Bonus</h4>
+              <div className="space-y-2 text-sm text-slate-700">
+                <div className="flex justify-between">
+                  <span>Games Scored:</span>
+                  <span className="font-semibold">Your actual score (e.g., 4 points if you scored 4)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Win Bonus:</span>
+                  <span className="font-semibold">+2 points for winning</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tournament Winner:</span>
+                  <span className="font-semibold">+5 points bonus</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-2xl p-4 shadow-inner">
+              <h4 className="font-bold text-emerald-800 mb-2">Example Game: 6-2 Win</h4>
+              <div className="space-y-1 text-sm text-emerald-700">
+                <div>6 points (games scored)</div>
+                <div>+2 points (win bonus)</div>
+                <div className="font-bold border-t border-emerald-200 pt-1">= 8 total points</div>
+              </div>
+            </div>
+          </div>
+        </NeumorphismCard>
+
+        <NeumorphismCard>
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center shadow-inner">
+              <Trophy className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800">Why This System?</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 shadow-inner">
+              <h4 className="font-bold text-slate-800 mb-2">Fair & Simple</h4>
+              <p className="text-sm text-slate-700">Every point you score counts, even in losses. No complex calculations or confusing rating changes.</p>
+            </div>
+
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 shadow-inner">
+              <h4 className="font-bold text-slate-800 mb-2">Encourages Competition</h4>
+              <p className="text-sm text-slate-700">Fight for every point! Losing 6-4 gives you more points than losing 6-1.</p>
+            </div>
+
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 shadow-inner">
+              <h4 className="font-bold text-slate-800 mb-2">Clean Ranking</h4>
+              <p className="text-sm text-slate-700">Rankings recalculate from actual game results. No stuck data or baseline issues.</p>
+            </div>
+          </div>
+        </NeumorphismCard>
+      </div>
+
+      <NeumorphismCard>
+        <h3 className="text-2xl font-bold text-slate-800 mb-6 text-center">Tournament Structure</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-inner text-white font-bold">
+              1
+            </div>
+            <h4 className="font-bold text-slate-800 mb-2">Create Tournament</h4>
+            <p className="text-sm text-slate-600">Start a new tournament with a catchy name like "Tuesday Clash #3"</p>
+          </div>
+          
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center shadow-inner text-white font-bold">
+              2
+            </div>
+            <h4 className="font-bold text-slate-800 mb-2">Play Games</h4>
+            <p className="text-sm text-slate-600">Add game results as you play. Rankings update automatically.</p>
+          </div>
+          
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-inner text-white font-bold">
+              3
+            </div>
+            <h4 className="font-bold text-slate-800 mb-2">Crown Winner</h4>
+            <p className="text-sm text-slate-600">Mark the tournament winner to get 5 bonus points and complete the tournament.</p>
+          </div>
+        </div>
+      </NeumorphismCard>
+
+      <NeumorphismCard className="bg-gradient-to-r from-amber-50 to-amber-100">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-inner">
+            <Info className="w-8 h-8 text-white" />
+          </div>
+          <h3 className="text-2xl font-bold text-amber-800 mb-3">Firebase Integration</h3>
+          <p className="text-amber-700 max-w-2xl mx-auto">
+            This app uses Firebase for real-time data storage. All players, tournaments, and games are saved to the cloud. 
+            The demo version shows the interface - connect your Firebase project to enable full functionality.
+          </p>
+          <div className="mt-4 text-sm text-amber-600">
+            <p>To connect Firebase: Replace the mock functions with actual Firebase imports in your code</p>
+          </div>
+        </div>
+      </NeumorphismCard>
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-full mb-4">
-            <Trophy className="w-8 h-8 text-white animate-pulse" />
-          </div>
-          <p className="text-slate-600 text-lg font-medium">Loading Padel League...</p>
+  // Tournament Selection Page
+  const TournamentsPage = () => (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-4xl font-bold text-slate-800">Tournaments</h2>
+        <div className="flex gap-4">
+          <NeumorphismButton
+            onClick={() => setShowAddPlayer(true)}
+            variant="neutral"
+            className="px-4 py-3 rounded-2xl"
+          >
+            <Users className="w-4 h-4" />
+            Add Player
+          </NeumorphismButton>
+          <NeumorphismButton
+            onClick={() => {
+              setNewTournamentName(generateTournamentName());
+              setShowAddTournament(true);
+            }}
+            variant="primary"
+            className="px-6 py-4 rounded-2xl text-lg"
+          >
+            <Plus className="w-5 h-5" />
+            New Tournament
+          </NeumorphismButton>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 text-slate-800 relative">
-      <PadelCourtBackground />
-      
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center gap-4 mb-6">
-            <div className="bg-gradient-to-r from-blue-600 to-emerald-600 p-4 rounded-2xl shadow-lg">
-              <Trophy className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-6xl font-bold text-blue-700" style={{ fontFamily: 'Bebas Neue, cursive' }}>
-              MITON PADEL LEAGUE
-            </h1>
-          </div>
-          <p className="text-slate-600 text-lg">Elite player rankings & match tracking</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center gap-4">
-              <div className="bg-blue-100 p-3 rounded-2xl">
-                <Users className="w-8 h-8 text-blue-600" />
+      {tournaments.length === 0 ? (
+        <NeumorphismCard className="text-center py-16">
+          <Trophy className="w-20 h-20 mx-auto mb-6 text-slate-400" />
+          <h3 className="text-2xl font-semibold text-slate-600 mb-3">No tournaments yet</h3>
+          <p className="text-slate-500 text-lg">Create your first tournament to get started!</p>
+          <NeumorphismButton
+            onClick={() => {
+              setNewTournamentName(generateTournamentName());
+              setShowAddTournament(true);
+            }}
+            variant="primary"
+            className="px-8 py-4 rounded-2xl text-lg mt-6"
+          >
+            <Plus className="w-5 h-5" />
+            Create First Tournament
+          </NeumorphismButton>
+        </NeumorphismCard>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tournaments.map(tournament => (
+            <NeumorphismCard 
+              key={tournament.id}
+              hover={true}
+              className="cursor-pointer"
+            >
+              <div
+                onClick={() => {
+                  setCurrentTournament(tournament);
+                  setCurrentPage('tournament');
+                }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-slate-800">{tournament.name}</h3>
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    tournament.isActive 
+                      ? 'bg-emerald-100 text-emerald-700 shadow-inner' 
+                      : 'bg-slate-100 text-slate-600 shadow-inner'
+                  }`}>
+                    {tournament.isActive ? 'Active' : 'Completed'}
+                  </div>
+                </div>
+                
+                {tournament.winner && (
+                  <div className="bg-gradient-to-r from-amber-100 to-amber-200 rounded-2xl p-4 mb-4 shadow-inner">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-amber-600" />
+                      <span className="font-bold text-amber-800">
+                        Winner: {tournament.winner}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                <p className="text-sm text-slate-600">
+                  Created {tournament.createdAt?.toLocaleDateString?.() || 'Recently'}
+                </p>
               </div>
-              <div>
-                <h3 className="text-3xl font-bold text-slate-800">{players.length}</h3>
-                <p className="text-slate-600 font-medium">Active Players</p>
+            </NeumorphismCard>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Current Tournament Page
+  const TournamentPage = () => {
+    const tournamentGames = games.filter(g => g.tournamentId === currentTournament?.id);
+    
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <NeumorphismButton
+              onClick={() => setCurrentPage('tournaments')}
+              variant="neutral"
+              className="p-3 rounded-2xl"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </NeumorphismButton>
+            <div>
+              <h2 className="text-4xl font-bold text-slate-800">{currentTournament?.name}</h2>
+              <div className="flex items-center gap-3 mt-2">
+                <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  currentTournament?.isActive 
+                    ? 'bg-emerald-100 text-emerald-700 shadow-inner' 
+                    : 'bg-slate-100 text-slate-600 shadow-inner'
+                }`}>
+                  {currentTournament?.isActive ? 'Active Tournament' : 'Completed'}
+                </div>
+                {currentTournament?.winner && (
+                  <div className="flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-medium shadow-inner">
+                    <Trophy className="w-4 h-4" />
+                    Winner: {currentTournament.winner}
+                  </div>
+                )}
               </div>
             </div>
           </div>
           
-          <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center gap-4">
-              <div className="bg-emerald-100 p-3 rounded-2xl">
-                <Target className="w-8 h-8 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-3xl font-bold text-slate-800">{matches.length}</h3>
-                <p className="text-slate-600 font-medium">Matches Played</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center gap-4">
-              <div className="bg-amber-100 p-3 rounded-2xl">
-                <Trophy className="w-8 h-8 text-amber-600" />
-              </div>
-              <div>
-                <h3 className="text-3xl font-bold text-slate-800">
-                  {ranking[0]?.name || 'TBD'}
-                </h3>
-                <p className="text-slate-600 font-medium">League Champion</p>
-              </div>
-            </div>
-          </div>
+          {currentTournament?.isActive && (
+            <NeumorphismButton
+              onClick={() => setShowAddGame(true)}
+              disabled={players.length < 4}
+              variant="secondary"
+              className="px-6 py-4 rounded-2xl text-lg"
+            >
+              <Plus className="w-5 h-5" />
+              Add Game
+            </NeumorphismButton>
+          )}
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          <div className="bg-white/80 backdrop-blur-sm border border-white/30 rounded-3xl shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-8 border-b border-slate-200/50">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                  <Trophy className="w-7 h-7 text-amber-500" />
-                  Player Rankings
-                </h2>
-                <button
-                  onClick={() => setShowAddPlayer(true)}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Player
-                </button>
-              </div>
+          {/* Rankings */}
+          <NeumorphismCard>
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3 mb-2">
+                <Trophy className="w-7 h-7 text-amber-500" />
+                Tournament Rankings
+              </h3>
+              <p className="text-sm text-slate-600">
+                Points = Games Scored + Win Bonus (2pts) + Tournament Winner (5pts)
+              </p>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
-              {ranking.map((player, index) => (
-                <div key={player.id} className="group flex items-center justify-between p-3 sm:p-5 bg-gradient-to-r from-white to-slate-50 rounded-2xl border border-slate-200/50 hover:shadow-lg transition-all duration-200">
-                  <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                    <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-                      <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 rounded-full font-bold text-slate-700 text-sm sm:text-base">
-                        {index + 1}
-                      </div>
-                      <div className="hidden sm:block">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {rankings.map((player, index) => (
+                <div key={player.name} className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full font-bold text-slate-700 shadow-inner">
+                          {index + 1}
+                        </div>
                         {getRankIcon(index)}
                       </div>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-slate-800 text-base sm:text-lg truncate">{player.name}</h3>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
-                        <div className="text-xs sm:text-sm text-slate-600">
-                          <span className="font-semibold">{player.wins}W-{player.losses}L</span>
-                        </div>
-                        <div className="hidden sm:flex items-center text-xs sm:text-sm text-slate-600">
-                          <span className="mx-2 text-slate-400">•</span>
-                          <span>{getWinRate(player)}% wins</span>
-                          <span className="mx-2 text-slate-400">•</span>
-                          <span>{getGameWinRate(player)}% games</span>
-                        </div>
-                        <div className="flex sm:hidden text-xs text-slate-500">
-                          <span>{getWinRate(player)}% win rate</span>
-                        </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-lg">{player.name}</h4>
+                        <p className="text-sm text-slate-600">
+                          {player.gamesWon}W / {player.gamesPlayed}G • {player.totalScored} scored
+                        </p>
                       </div>
                     </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-xl sm:text-2xl font-bold text-slate-800">{player.points}</div>
-                    <div className="text-xs sm:text-sm text-slate-500">{player.matches} matches</div>
-                  </div>
-                </div>
-              ))}
-              
-              {players.filter(p => p.matches === 0).map(player => (
-                <div key={player.id} className="flex items-center justify-between p-3 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200/30 opacity-60">
-                  <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                    <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-slate-200 rounded-full text-xs sm:text-sm text-slate-500">
-                      —
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-slate-700 truncate">{player.name}</h3>
-                      <p className="text-xs sm:text-sm text-slate-500">No matches played</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => removePlayer(player.id)}
-                    className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-all duration-200 flex-shrink-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm border border-white/30 rounded-3xl shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-emerald-50 p-8 border-b border-slate-200/50">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                  <Calendar className="w-7 h-7 text-emerald-500" />
-                  Match History
-                </h2>
-                <button
-                  onClick={() => setShowAddMatch(true)}
-                  disabled={players.length < 4}
-                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-300 disabled:to-slate-400 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Match
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
-              {matches.map(match => (
-                <div key={match.id} className="bg-gradient-to-r from-white to-slate-50 rounded-2xl border border-slate-200/50 p-5 hover:shadow-lg transition-all duration-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-slate-500 font-medium">{match.date}</span>
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 px-4 py-2 rounded-xl">
-                        <span className="text-xl font-bold text-slate-800">{match.score}</span>
-                      </div>
-                      <button
-                        onClick={() => deleteMatch(match.id)}
-                        className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-all duration-200"
-                        title="Delete match"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className={`p-4 rounded-xl border-2 transition-all duration-200 ${
-                      match.winner === 'team1' 
-                        ? 'bg-emerald-50 border-emerald-200 shadow-sm' 
-                        : 'bg-slate-50 border-slate-200'
-                    }`}>
-                      <div className="text-sm font-bold text-slate-800 mb-1">
-                        {match.team1[0]} & {match.team1[1]}
-                      </div>
-                      {match.winner === 'team1' && (
-                        <div className="text-xs text-emerald-700 font-bold bg-emerald-100 px-2 py-1 rounded-lg inline-block">
-                          WINNERS
-                        </div>
-                      )}
-                    </div>
-                    <div className={`p-4 rounded-xl border-2 transition-all duration-200 ${
-                      match.winner === 'team2' 
-                        ? 'bg-emerald-50 border-emerald-200 shadow-sm' 
-                        : 'bg-slate-50 border-slate-200'
-                    }`}>
-                      <div className="text-sm font-bold text-slate-800 mb-1">
-                        {match.team2[0]} & {match.team2[1]}
-                      </div>
-                      {match.winner === 'team2' && (
-                        <div className="text-xs text-emerald-700 font-bold bg-emerald-100 px-2 py-1 rounded-lg inline-block">
-                          WINNERS
-                        </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-slate-800">{player.totalPoints}</div>
+                      {currentTournament?.isActive && (
+                        <NeumorphismButton
+                          onClick={() => markTournamentWinner(player.name)}
+                          variant="primary"
+                          className="text-xs px-3 py-1 rounded-xl mt-1"
+                        >
+                          Mark Winner
+                        </NeumorphismButton>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-              
-              {matches.length === 0 && (
-                <div className="text-center py-12 text-slate-400">
-                  <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg">No matches played yet</p>
-                  <p className="text-sm">Add your first match to get started</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {showAddPlayer && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white/95 backdrop-blur rounded-3xl p-8 w-full max-w-md shadow-2xl">
-              <h3 className="text-2xl font-bold mb-6 text-slate-800">Add New Player</h3>
-              <input
-                type="text"
-                placeholder="Player name"
-                value={newPlayerName}
-                onChange={(e) => setNewPlayerName(e.target.value)}
-                className="w-full p-4 border border-slate-200 rounded-2xl mb-6 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all duration-200"
-                onKeyPress={(e) => e.key === 'Enter' && addPlayer()}
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={addPlayer}
-                  disabled={!newPlayerName.trim()}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-300 disabled:to-slate-400 text-white py-3 px-6 rounded-2xl transition-all duration-200 font-semibold disabled:cursor-not-allowed"
-                >
-                  Add Player
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddPlayer(false);
-                    setNewPlayerName('');
-                  }}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 px-6 rounded-2xl transition-all duration-200 font-semibold"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAddMatch && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white/95 backdrop-blur rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold mb-6 text-slate-800">Add New Match</h3>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
-                  <input
-                    type="date"
-                    value={matchForm.date}
-                    onChange={(e) => setMatchForm({...matchForm, date: e.target.value})}
-                    className="w-full p-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all duration-200"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-blue-50 p-6 rounded-2xl">
-                    <label className="block text-sm font-bold text-blue-800 mb-3">Team 1</label>
-                    <select
-                      value={matchForm.team1Player1}
-                      onChange={(e) => setMatchForm({...matchForm, team1Player1: e.target.value})}
-                      className="w-full p-3 border border-blue-200 rounded-xl mb-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all duration-200 bg-white"
-                    >
-                      <option value="">Select Player 1</option>
-                      {players.map(player => (
-                        <option key={player.id} value={player.name}>{player.name}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={matchForm.team1Player2}
-                      onChange={(e) => setMatchForm({...matchForm, team1Player2: e.target.value})}
-                      className="w-full p-3 border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all duration-200 bg-white"
-                    >
-                      <option value="">Select Player 2</option>
-                      {players.map(player => (
-                        <option key={player.id} value={player.name}>{player.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="bg-emerald-50 p-6 rounded-2xl">
-                    <label className="block text-sm font-bold text-emerald-800 mb-3">Team 2</label>
-                    <select
-                      value={matchForm.team2Player1}
-                      onChange={(e) => setMatchForm({...matchForm, team2Player1: e.target.value})}
-                      className="w-full p-3 border border-emerald-200 rounded-xl mb-3 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all duration-200 bg-white"
-                    >
-                      <option value="">Select Player 1</option>
-                      {players.map(player => (
-                        <option key={player.id} value={player.name}>{player.name}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={matchForm.team2Player2}
-                      onChange={(e) => setMatchForm({...matchForm, team2Player2: e.target.value})}
-                      className="w-full p-3 border border-emerald-200 rounded-xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all duration-200 bg-white"
-                    >
-                      <option value="">Select Player 2</option>
-                      {players.map(player => (
-                        <option key={player.id} value={player.name}>{player.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Team 1 Score</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={matchForm.team1Score}
-                      onChange={(e) => setMatchForm({...matchForm, team1Score: e.target.value})}
-                      className="w-full p-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all duration-200 text-center text-2xl font-bold"
-                      placeholder="4"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Team 2 Score</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={matchForm.team2Score}
-                      onChange={(e) => setMatchForm({...matchForm, team2Score: e.target.value})}
-                      className="w-full p-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all duration-200 text-center text-2xl font-bold"
-                      placeholder="2"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-6 rounded-2xl border border-blue-200/50">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Target className="w-5 h-5 text-slate-600" />
-                    <span className="font-bold text-slate-800">Score Impact</span>
-                  </div>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    <strong>Dominant wins</strong> (4-0, 5-1) earn <strong className="text-emerald-700">30-50% more points</strong> than close wins (4-3, 5-4). 
-                    Show your skills on the court!
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4 mt-8">
-                <button
-                  onClick={addMatch}
-                  className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-4 px-8 rounded-2xl transition-all duration-200 font-bold text-lg shadow-lg hover:shadow-xl"
-                >
-                  Add Match
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddMatch(false);
-                    setMatchForm({
-                      team1Player1: '',
-                      team1Player2: '',
-                      team2Player1: '',
-                      team2Player2: '',
-                      team1Score: '',
-                      team2Score: '',
-                      date: new Date().toISOString().split('T')[0]
-                    });
-                  }}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-4 px-8 rounded-2xl transition-all duration-200 font-bold text-lg"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default PadelCompetitionApp;
