@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Plus, X, Medal, Star, Calendar, Target, Home, Crown, ArrowLeft, Info, HelpCircle, Minus } from 'lucide-react';
+import { Trophy, Users, Plus, X, Medal, Star, Calendar, Target, Home, Crown, ArrowLeft, Info, HelpCircle } from 'lucide-react';
 
 // Real Firebase imports
 import { db } from './firebase';
@@ -730,6 +730,20 @@ const PadelCompetitionApp = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className={`p-3 rounded-lg ${
+                      game.winner === 'team1' 
+                        ? 'bg-emerald-100 border border-emerald-200' 
+                        : 'bg-white border border-gray-200'
+                    }`}>
+                      <div className="text-sm font-medium text-gray-900 mb-1">
+                        {game.team1[0]} & {game.team1[1]}
+                      </div>
+                      {game.winner === 'team1' && (
+                        <div className="text-xs text-emerald-700 font-medium bg-emerald-200 px-2 py-1 rounded inline-block">
+                          WIN
+                        </div>
+                      )}
+                    </div>
+                    <div className={`p-3 rounded-lg ${
                       game.winner === 'team2' 
                         ? 'bg-emerald-100 border border-emerald-200' 
                         : 'bg-white border border-gray-200'
@@ -1037,18 +1051,4 @@ const PadelCompetitionApp = () => {
   );
 };
 
-export default PadelCompetitionApp; ${
-                      game.winner === 'team1' 
-                        ? 'bg-emerald-100 border border-emerald-200' 
-                        : 'bg-white border border-gray-200'
-                    }`}>
-                      <div className="text-sm font-medium text-gray-900 mb-1">
-                        {game.team1[0]} & {game.team1[1]}
-                      </div>
-                      {game.winner === 'team1' && (
-                        <div className="text-xs text-emerald-700 font-medium bg-emerald-200 px-2 py-1 rounded inline-block">
-                          WIN
-                        </div>
-                      )}
-                    </div>
-                    <div className={`p-3 rounded-lg
+export default PadelCompetitionApp;
